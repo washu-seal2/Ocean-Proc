@@ -43,7 +43,8 @@ def run_fmri_prep(subject:str, bids_path:Path, derivs_path:Path, option_chain:st
                                  {derivs_path.as_posix()}
                                  participant""")
     try:
-        print(f"Running fmriprep-docker with the following command: \n  { " ".join(helper_command) } \n")
+        command_str = " ".join(helper_command)
+        print(f"Running fmriprep-docker with the following command: \n  {command_str} \n")
         with Popen(helper_command, stdout=PIPE) as p:
             while p.poll() == None:
                 text = p.stdout.read1().decode("utf-8", "ignore")
