@@ -9,6 +9,28 @@ from subprocess import Popen, PIPE
 
 
 def make_option(key, value):
+    """
+    Generate a string, representing an option that gets fed into dcm2bids.
+
+    For example, if a key is 'option' and its value is True, the option string it will generate would be:
+
+        --option
+
+    If value is equal to some string 'value', then the string would be:
+
+        --option value
+
+    If value is a list of strings:
+
+        --option value1 value2 ... valuen
+
+    :param key: Name of option to pass into dcm2bids, without double hyphen at the beginning.
+    :type key: str
+    :param value: Value to pass in along with the 'key' param.
+    :type value: str or bool or list[str] or None
+    :return: String to pass as an option into dcm2bids call.
+    :rtype: str
+    """
     first_part = f"--{key} "
     if value == None:
         return ""
@@ -20,7 +42,23 @@ def make_option(key, value):
         return first_part + value
 
 
-def run_fmri_prep(subject:str, bids_path:Path, derivs_path:Path, option_chain:str):
+def run_fmri_prep(subject:str,
+                  bids_path:Path,
+                  derivs_path:Path,
+                  option_chain:str):
+    """
+    Run fmriprep with parameters.
+
+    :param subject: Name of subject (ex. if path contains 'sub-5000', subject='5000')
+    :type subject: str
+    :param bids_path: Path to BIDS-compliant raw data folder.
+    :type bids_path: pathlib.Path
+    :param derivs_path: Path to BIDS-compliant derivatives folder.
+    :type derivs_path: pathlib.Path
+    :param option_chain: String containing generated list of options built by make_option().
+    :type option_chain: str
+    :raise RuntimeError: If fmriprep throws an error, or exits with a non-zero exit code.
+    """
     print("####### Starting fMRIPrep #######")
     if not bids_path.exists():
         exit_program_early(f"Bids path {bids_path} does not exist.")
