@@ -1,3 +1,4 @@
 .DS_Store
 nordic/
 __pycache__/
+.venv/
