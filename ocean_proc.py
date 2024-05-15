@@ -159,7 +159,7 @@ if __name__ == "__main__":
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
     fmrip_options = {"work_dir", "fs_license", "fs-subjects-dir"}
-    fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo]) for fo in fmrip_options])
+    fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo]) for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
         run_fmri_prep(

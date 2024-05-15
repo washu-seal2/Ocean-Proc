@@ -116,7 +116,6 @@ def run_dcm2bids(source_dir:Path,
 
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
-                                 {'--skip_dcm2niix' if args.nifti else ''}
                                  -d {source_dir.as_posix()} 
                                  -p {subject} 
                                  -s {session} 
@@ -138,7 +137,6 @@ def run_dcm2bids(source_dir:Path,
 
             nordic_run_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                             --bids_validate
-                                            {'--skip_dcm2niix' if nifti else ''}
                                             -d {source_dir.as_posix()} 
                                             -p {subject}
                                             -s {session}
