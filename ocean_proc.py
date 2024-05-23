@@ -127,8 +127,8 @@ if __name__ == "__main__":
                         help="The path to the second dcm2bids config file to use for this subject and session. This implies that the session contains NORDIC data")
     config_arguments.add_argument("--nifti", action="store_true",
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
-    config_arguments.add_argument("--nordic", "-n", action="store_true", required=False,
-                        help="Flag to indicate that this session contains nordic data. The '--bids_config2' option should also be specified")
+    # config_arguments.add_argument("--nordic", "-n", action="store_true", required=False,
+    #                     help="Flag to indicate that this session contains nordic data. The '--bids_config2' option should also be specified")
     config_arguments.add_argument("--derivs_path", "-d", required=True,
                         help="The path to the BIDS formated derivatives directory for this subject")
     config_arguments.add_argument("--work_dir", "-w", required=True,
