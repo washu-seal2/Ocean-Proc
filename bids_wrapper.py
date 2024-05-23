@@ -84,25 +84,25 @@ def run_dcm2bids(source_dir:Path,
                  config_file:Path, 
                  subject:str, 
                  session:str, 
-                 config_file2:Path=None, 
-                 nordic=False):
+                 nordic_config:Path=None,
+                 nifti:bool=False):
     """
     Run dcm2bids with a given set of parameters.
 
     :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
     :type source_dir: pathlib.Path
-    :param source_dir: Path to the bids directory to store the newly made NIFTI files
-    :type source_dir: pathlib.Path
+    :param bids_output_dir: Path to the bids directory to store the newly made NIFTI files
+    :type bids_output_dir: pathlib.Path
     :param config_file: Path to dcm2bids config file, which maps raw sourcedata to BIDS-compliant counterpart
     :type config_file: pathlib.Path
     :param subject: Subject name (ex. 'sub-5000', subject would be '5000')
     :type subject: str
     :param session: Session name (ex. 'ses-01', session would be '01')
     :type session: str
-    :param config_file2: Path to second dcm2bids config file, needed for additional post processing that one BIDS config file can't handle.
-    :type config_file2: pathlib.Path
-    :param nordic: Specify whether these runs use NORDIC
-    :type nordic: bool
+    :param nordic_config: Path to second dcm2bids config file, needed for additional post processing that one BIDS config file can't handle.
+    :type nordic_config: pathlib.Path
+    :param nifti: Specify that the soure directory contains NIFTI files instead of DICOM
+    :type nifti: bool
     :raise RuntimeError: If dcm2bids exits with a non-zero exit code.
     """
     if not source_dir.exists():
@@ -116,6 +116,7 @@ def run_dcm2bids(source_dir:Path,
 
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
+                                 {'--skip_dcm2niix' if nifti else ''}
                                  -d {source_dir.as_posix()} 
                                  -p {subject} 
                                  -s {session} 
@@ -131,16 +132,17 @@ def run_dcm2bids(source_dir:Path,
             if p.poll() != 0:
                 raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
             
-        if nordic and config_file2:
-            if not config_file2.exists():
-                exit_program_early(f"Path {config_file2} does not exist.")
+        if nordic_config:
+            if not nordic_config.exists():
+                exit_program_early(f"Path {nordic_config} does not exist.")
 
             nordic_run_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                             --bids_validate
+                                             {'--skip_dcm2niix' if nifti else ''}
                                             -d {source_dir.as_posix()} 
                                             -p {subject}
                                             -s {session}
-                                            -c {config_file2.as_posix()}
+                                            -c {nordic_config.as_posix()}
                                             -o {bids_output_dir.as_posix()}
                                             """)
             print("####### Running second round of Dcm2Bids ########")
@@ -162,25 +164,49 @@ def dicom_to_bids(subject:str,
                   source_dir:str, 
                   bids_dir:str, 
                   xml_path:str, 
-                  bids_config1:str, 
-                  bids_config2:str=None, 
-                  nordic=False):
+                  bids_config:str, 
+                  nordic_config:str=None,
+                  nifti=False):
+    
+    """
+    Facilitates the conversion of DICOM data into NIFTI data in BIDS format, and the removal of data marked 'unusable'.
+
+    :param subject: Subject name (ex. 'sub-5000', subject would be '5000')
+    :type subject: str
+    :param session: Session name (ex. 'ses-01', session would be '01')
+    :type session: str
+    :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
+    :type source_dir: pathlib.Path
+    :param bids_dir: Path to the bids directory to store the newly made NIFTI files
+    :type bids_dir: pathlib.Path
+    :param bids_config: Path to dcm2bids config file, which maps raw sourcedata to BIDS-compliant counterpart
+    :type bids_config: pathlib.Path
+    :param nordic_config: Path to second dcm2bids config file, needed for additional post processing if NORDIC data that one BIDS config file can't handle.
+    :type nordic_config: pathlib.Path
+    :param nifti: Specify that the soure directory contains NIFTI files instead of DICOM
+    :type nifti: bool
+    """
+
+
     source_dir = Path(source_dir)
     bids_dir = Path(bids_dir)
     xml_path = Path(xml_path)
-    bids_config1 = Path(bids_config1)
-    if nordic: 
-        if bids_config2:
-            bids_config2 = Path(bids_config2)
-        if not bids_config2:
-            print("---[WARNING]: Nordic flag set, but a second dcm2bids config file was not provided")
-            prompt_user_continue("Continue without NORDIC processing?")
-    if bids_config2:
-        if not nordic:
-            print("---[WARNING]: Second dcm2bids config file was provided, but the nordic flag was not set")
-            prompt_user_continue("Continue without NORDIC processing?")
+    bids_config = Path(bids_config)
+    if nordic_config:
+        nordic_config = Path(nordic_config)
 
-    run_dcm2bids(source_dir, bids_dir, bids_config1, subject, session, bids_config2, nordic)
+    # if nordic: 
+    #     if bids_config2:
+    #         bids_config2 = Path(bids_config2)
+    #     if not bids_config2:
+    #         print("---[WARNING]: Nordic flag set, but a second dcm2bids config file was not provided")
+    #         prompt_user_continue("Continue without NORDIC processing?")
+    # if bids_config2:
+    #     if not nordic:
+    #         print("---[WARNING]: Second dcm2bids config file was provided, but the nordic flag was not set")
+    #         prompt_user_continue("Continue without NORDIC processing?")
+
+    run_dcm2bids(source_dir, bids_dir, bids_config, subject, session, nordic_config, nifti)
     remove_unusable_runs(xml_path, bids_dir, subject)
 
 
@@ -188,15 +214,24 @@ if __name__ == "__main__":
     parser = ArgumentParser(prog="bids_wrapper.py",
                                     description="wrapper script for dcm2bids",
                                     epilog="WIP")
-    parser.add_argument("-su", "--subject", required=True, help="Subject ID")
-    parser.add_argument("-se","--session", required=True, help="Session ID")
-    parser.add_argument("-sd", "--source_data", required=True, help="Path to directory containing this session's DICOM files")
-    parser.add_argument("-b", "--bids_path", required=True, help="Path to the bids directory to store the newly made NIFTI files")
-    parser.add_argument("-x", "--xml_path", required=True, help="Path to this session's XML file")
-    parser.add_argument("-c1", "--bids_config1", required=True, help="dcm2bids config json file")
-    parser.add_argument("-c2", "--bids_config2", help="Second dcm2bids config json file used for NORDIC processing")
-    parser.add_argument("--nordic", action="store_true", help="Flag to indicate there are nordic runs in this data")
-    # parser.add_argument("--nifti", help="specify that our DICOM folder contains .nii/.jsons instead", action='store_true')
+    parser.add_argument("-su", "--subject", required=True, 
+                        help="Subject ID")
+    parser.add_argument("-se","--session", required=True, 
+                        help="Session ID")
+    parser.add_argument("-sd", "--source_data", required=True, 
+                        help="Path to directory containing this session's DICOM files")
+    parser.add_argument("-b", "--bids_path", required=True, 
+                        help="Path to the bids directory to store the newly made NIFTI files")
+    parser.add_argument("-x", "--xml_path", required=True, 
+                        help="Path to this session's XML file")
+    parser.add_argument("-c", "--bids_config", required=True, 
+                        help="dcm2bids config json file")
+    parser.add_argument("-n", "--nordic_config", 
+                        help="Second dcm2bids config json file used for NORDIC processing")
+    # parser.add_argument("--nordic", action="store_true", 
+    #                     help="Flag to indicate there are nordic runs in this data")
+    parser.add_argument("--nifti", action='store_true', 
+                        help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
     args = parser.parse_args()
     
     dicom_to_bids(subject=args.subject,
@@ -204,6 +239,6 @@ if __name__ == "__main__":
                   source_dir=args.source_data,
                   bids_dir=args.bids_path,
                   xml_path=args.xml_path,
-                  bids_config1=args.bids_config1,
-                  bids_config2=args.bids_config2,
-                  nordic=args.nordic)
+                  bids_config=args.bids_config,
+                  nordic_config=args.nordic_config,
+                  nifti=args.nifti)
