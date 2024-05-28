@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ocean-proc"
+version = "0.0.1"
+dynamic = ["version"]
+requires-python = " >= 3.9 " 
+dependencies = [
+	"iniconfig==2.0.0",
+	"packaging==24.0",
+	"pluggy==1.5.0",
+	"pytest==8.2.0",
+]
+readme = "README.md"
+classifiers = [
+	"Development Status :: 2 - Pre-Alpha",
+	"Environment :: Console",
+	"Intended Audience :: Science/Research",
+	"Operating System :: POSIX :: Linux",
+]
+
+
