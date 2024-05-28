@@ -5,7 +5,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ocean-proc"
 version = "0.0.1"
-dynamic = ["version"]
 requires-python = " >= 3.9 " 
 dependencies = [
 	"iniconfig==2.0.0",
