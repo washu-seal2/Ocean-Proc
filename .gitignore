@@ -2,3 +2,5 @@
 nordic/
 __pycache__/
 .venv/
+dist/
+ocean_proc.egg-info/
