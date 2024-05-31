@@ -1,0 +1,823 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xnat:Subject ID="CNDA06_S15814" project="NP1119" label="test" xmlns:visit="http://nrg.wustl.edu/visit" xmlns:cnda_ext="http://nrg.wustl.edu/cnda_ext" xmlns:ghf="http://nrg.wustl.edu/ghf" xmlns:kblack="http://nrg.wustl.edu/wu_kblack" xmlns:dian="http://nrg.wustl.edu/dian" xmlns:rad="http://nrg.wustl.edu/rad" xmlns:scr="http://nrg.wustl.edu/scr" xmlns:xnat_a="http://nrg.wustl.edu/xnat_assessments" xmlns:pipe="http://nrg.wustl.edu/pipe" xmlns:bcl="http://nrg.wustl.edu/bcl" xmlns:cog="http://nrg.wustl.edu/cog" xmlns:cnda="http://nrg.wustl.edu/cnda" xmlns:srs="http://nrg.wustl.edu/srs" xmlns:prov="http://www.nbirn.net/prov" xmlns:icr="http://icr.ac.uk/icr" xmlns:sf="http://nrg.wustl.edu/sf" xmlns:cbat="http://nrg.wustl.edu/cbat" xmlns:ls2="http://nrg.wustl.edu/ls2" xmlns:neuroinfo="http://www.neuroinfo.org/neuroinfo" xmlns:fs="http://nrg.wustl.edu/fs" xmlns:behavioral="http://nrg.wustl.edu/behavioral" xmlns:condr_mets="http://nrg.wustl.edu/condr_mets" xmlns:arc="http://nrg.wustl.edu/arc" xmlns:val="http://nrg.wustl.edu/val" xmlns:iq="http://nrg.wustl.edu/iq" xmlns:wmh="http://nrg.wustl.edu/wmh" xmlns:mpet="http://nrg.wustl.edu/mpet" xmlns:uds="http://nrg.wustl.edu/uds" xmlns:opti="http://nrg.wustl.edu/opti" xmlns:xnat="http://nrg.wustl.edu/xnat" xmlns:cat="http://nrg.wustl.edu/catalog" xmlns:pup="http://nrg.wustl.edu/pup" xmlns:ipip="http://nrg.wustl.edu/ipip" xmlns:clin="http://nrg.wustl.edu/clin" xmlns:cgs="http://nrg.wustl.edu/cgs" xmlns:tissue="http://nrg.wustl.edu/tissue" xmlns:adir="http://nrg.wustl.edu/adir" xmlns:xdat="http://nrg.wustl.edu/security" xmlns:ados="http://nrg.wustl.edu/ados" xmlns:pet="http://nrg.wustl.edu/pet" xmlns:mayo="http://nrg.wustl.edu/mayo" xmlns:tx="http://nrg.wustl.edu/tx" xmlns:wrk="http://nrg.wustl.edu/workflow" xmlns:condr="http://nrg.wustl.edu/condr" xmlns:mfp="http://nrg.wustl.edu/mfp" xmlns:nihSS="http://nrg.wustl.edu/nihSS" xmlns:adrc="http://nrg.wustl.edu/adrc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://nrg.wustl.edu/pet https://cnda.wustl.edu/schemas/pet.xsd http://nrg.wustl.edu/ados https://cnda.wustl.edu/schemas/ados.xsd http://nrg.wustl.edu/sf https://cnda.wustl.edu/schemas/subjforms.xsd http://nrg.wustl.edu/srs https://cnda.wustl.edu/schemas/srs.xsd http://nrg.wustl.edu/catalog https://cnda.wustl.edu/schemas/catalog.xsd http://nrg.wustl.edu/bcl https://cnda.wustl.edu/schemas/bcl.xsd http://nrg.wustl.edu/arc https://cnda.wustl.edu/schemas/project.xsd http://nrg.wustl.edu/xnat_assessments https://cnda.wustl.edu/schemas/ygtss.xsd http://nrg.wustl.edu/workflow https://cnda.wustl.edu/schemas/workflow.xsd http://nrg.wustl.edu/cnda https://cnda.wustl.edu/schemas/vitals.xsd http://nrg.wustl.edu/adir https://cnda.wustl.edu/schemas/adir.xsd http://icr.ac.uk/icr https://cnda.wustl.edu/schemas/roi.xsd http://nrg.wustl.edu/mayo https://cnda.wustl.edu/schemas/mayo.xsd http://nrg.wustl.edu/tissue https://cnda.wustl.edu/schemas/tissue.xsd http://nrg.wustl.edu/rad https://cnda.wustl.edu/schemas/radRead.xsd http://nrg.wustl.edu/cnda https://cnda.wustl.edu/schemas/cnda_xnat.xsd http://nrg.wustl.edu/cgs https://cnda.wustl.edu/schemas/cgs.xsd http://nrg.wustl.edu/ls2 https://cnda.wustl.edu/schemas/ls2.xsd http://nrg.wustl.edu/xnat https://cnda.wustl.edu/schemas/xnat.xsd http://nrg.wustl.edu/pup https://cnda.wustl.edu/schemas/pup.xsd http://nrg.wustl.edu/ghf https://cnda.wustl.edu/schemas/ghf.xsd http://nrg.wustl.edu/ipip https://cnda.wustl.edu/schemas/ipip.xsd http://nrg.wustl.edu/dian https://cnda.wustl.edu/schemas/dian.xsd http://nrg.wustl.edu/wmh https://cnda.wustl.edu/schemas/wmh.xsd http://nrg.wustl.edu/opti https://cnda.wustl.edu/schemas/opti.xsd http://nrg.wustl.edu/clin https://cnda.wustl.edu/schemas/clin.xsd http://nrg.wustl.edu/fs https://cnda.wustl.edu/schemas/fs.xsd http://nrg.wustl.edu/mpet https://cnda.wustl.edu/schemas/mpet.xsd http://nrg.wustl.edu/visit https://cnda.wustl.edu/schemas/visit.xsd http://www.nbirn.net/prov https://cnda.wustl.edu/schemas/birnprov.xsd http://nrg.wustl.edu/condr_mets https://cnda.wustl.edu/schemas/condr_mets.xsd http://nrg.wustl.edu/mfp https://cnda.wustl.edu/schemas/mfp.xsd http://nrg.wustl.edu/iq https://cnda.wustl.edu/schemas/iq.xsd http://nrg.wustl.edu/cbat https://cnda.wustl.edu/schemas/cbat.xsd http://nrg.wustl.edu/xnat_assessments https://cnda.wustl.edu/schemas/assessments.xsd http://www.neuroinfo.org/neuroinfo https://cnda.wustl.edu/schemas/neuroinfo.xsd http://nrg.wustl.edu/cnda_ext https://cnda.wustl.edu/schemas/cnda_ext.xsd http://nrg.wustl.edu/val https://cnda.wustl.edu/schemas/protocolValidation.xsd http://nrg.wustl.edu/cog https://cnda.wustl.edu/schemas/cog.xsd http://nrg.wustl.edu/behavioral https://cnda.wustl.edu/schemas/behavioral.xsd http://nrg.wustl.edu/tx https://cnda.wustl.edu/schemas/treatments.xsd http://nrg.wustl.edu/security https://cnda.wustl.edu/schemas/security.xsd http://nrg.wustl.edu/uds https://cnda.wustl.edu/schemas/uds.xsd http://nrg.wustl.edu/pipe https://cnda.wustl.edu/schemas/repository.xsd http://nrg.wustl.edu/nihSS https://cnda.wustl.edu/schemas/nihSS.xsd http://nrg.wustl.edu/wu_kblack https://cnda.wustl.edu/schemas/kblack.xsd http://nrg.wustl.edu/scr https://cnda.wustl.edu/schemas/screeningAssessment.xsd http://nrg.wustl.edu/condr https://cnda.wustl.edu/schemas/condr.xsd http://nrg.wustl.edu/adrc https://cnda.wustl.edu/schemas/adrc.xsd">
+<xnat:experiments>
+<xnat:experiment ID="CNDA06_E43364" project="NP1119" label="test" session_type="head^Sylvester" UID="1.3.12.2.1107.5.2.43.67064.30000024040817330673500000097" study_id="1" xsi:type="xnat:mrSessionData">
+<xnat:date>1980-01-01</xnat:date>
+<xnat:time>13:07:16</xnat:time>
+<xnat:acquisition_site>Washington University</xnat:acquisition_site>
+<xnat:subject_ID>CNDA06_S15814</xnat:subject_ID>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:operator>VB NG</xnat:operator>
+<xnat:prearchivePath>/data/CNDA/prearchive/NP1119/19800418_155153865/test</xnat:prearchivePath>
+<xnat:scans>
+<xnat:scan ID="1" type="Localizer_quiet" UID="1.3.12.2.1107.5.2.43.67064.1980041813084568974803395.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806381"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>Localizer_quiet</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>3</xnat:frames>
+<xnat:file label="DICOM" file_count="3" file_size="1962760" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/1/DICOM/scan_1_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090685",xnat_imageScanData_xnat_imagescandata_id="3806381"]-->
+</xnat:file>
+<xnat:startTime>13:09:01</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>Localizer_quiet</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="0.5" y="0.5" z="7.0"/>
+<xnat:fov x="512" y="512"/>
+<xnat:tr>30.0</xnat:tr>
+<xnat:te>5.0</xnat:te>
+<xnat:flip>20.0</xnat:flip>
+<xnat:sequence>*fl2d1</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM</xnat:imageType>
+<xnat:scanSequence>GR</xnat:scanSequence>
+<xnat:seqVariant>SP\OSP</xnat:seqVariant>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>320.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="2" type="Localizer_quiet_SAG" UID="1.3.12.2.1107.5.2.43.67064.1980041813095289255503411.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806382"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>Localizer_quiet_SAG</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="654708" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/2/DICOM/scan_2_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090686",xnat_imageScanData_xnat_imagescandata_id="3806382"]-->
+</xnat:file>
+<xnat:startTime>13:10:11</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>Localizer_quiet_SAG</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="0.5" y="0.5" z="7.0"/>
+<xnat:orientation>Sag</xnat:orientation>
+<xnat:fov x="512" y="512"/>
+<xnat:tr>30.0</xnat:tr>
+<xnat:te>5.0</xnat:te>
+<xnat:flip>20.0</xnat:flip>
+<xnat:sequence>*fl2d1</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM</xnat:imageType>
+<xnat:scanSequence>GR</xnat:scanSequence>
+<xnat:seqVariant>SP\OSP</xnat:seqVariant>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>320.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="3" type="SpinEchoFieldMap_AP_2.4_216_CE" UID="1.3.12.2.1107.5.2.43.67064.1980041813105633002904253.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806383"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>SpinEchoFieldMap_AP_2.4_216_CE</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>3</xnat:frames>
+<xnat:file label="DICOM" file_count="3" file_size="3673260" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/3/DICOM/scan_3_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090687",xnat_imageScanData_xnat_imagescandata_id="3806383"]-->
+</xnat:file>
+<xnat:startTime>13:11:12</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>SpinEchoFieldMap_AP_2.4_216_CE</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>8000.0</xnat:tr>
+<xnat:te>66.0</xnat:te>
+<xnat:flip>90.0</xnat:flip>
+<xnat:sequence>epse2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="4" type="SpinEchoFieldMap_PA_2.4_216_CE" UID="1.3.12.2.1107.5.2.43.67064.1980041813113519296104804.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806384"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>SpinEchoFieldMap_PA_2.4_216_CE</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>3</xnat:frames>
+<xnat:file label="DICOM" file_count="3" file_size="3650788" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/4/DICOM/scan_4_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090688",xnat_imageScanData_xnat_imagescandata_id="3806384"]-->
+</xnat:file>
+<xnat:startTime>13:11:51</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>SpinEchoFieldMap_PA_2.4_216_CE</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>8000.0</xnat:tr>
+<xnat:te>66.0</xnat:te>
+<xnat:flip>90.0</xnat:flip>
+<xnat:sequence>epse2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="5" type="T2w_SPC_pat3_20180421" UID="1.3.12.2.1107.5.2.43.67064.1980041813181996572905542.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806385"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>T2w_SPC_pat3_20180421</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>208</xnat:frames>
+<xnat:file label="DICOM" file_count="208" file_size="64924410" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/5/DICOM/scan_5_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090689",xnat_imageScanData_xnat_imagescandata_id="3806385"]-->
+</xnat:file>
+<xnat:startTime>13:18:20</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>T2w_SPC_pat3_20180421</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="0.80000001192093" y="0.80000001192093" z="0.79999995231628"/>
+<xnat:orientation>Sag</xnat:orientation>
+<xnat:fov x="300" y="320"/>
+<xnat:tr>4500.0</xnat:tr>
+<xnat:te>563.0</xnat:te>
+<xnat:flip>120.0</xnat:flip>
+<xnat:sequence>*spcR_314ns</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND</xnat:imageType>
+<xnat:scanSequence>SE</xnat:scanSequence>
+<xnat:seqVariant>SK\SP</xnat:seqVariant>
+<xnat:scanOptions>PFP</xnat:scanOptions>
+<xnat:acqType>3D</xnat:acqType>
+<xnat:pixelBandwidth>745.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="6" type="T2w_SPC_pat3_20180421" UID="1.3.12.2.1107.5.2.43.67064.198004181318201714505558.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806386"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>T2w_SPC_pat3_20180421</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>208</xnat:frames>
+<xnat:file label="DICOM" file_count="208" file_size="64958516" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/6/DICOM/scan_6_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090690",xnat_imageScanData_xnat_imagescandata_id="3806386"]-->
+</xnat:file>
+<xnat:startTime>13:18:20</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>T2w_SPC_pat3_20180421</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="0.80000001192093" y="0.80000001192093" z="0.79999995231628"/>
+<xnat:orientation>Sag</xnat:orientation>
+<xnat:fov x="300" y="320"/>
+<xnat:tr>4500.0</xnat:tr>
+<xnat:te>563.0</xnat:te>
+<xnat:flip>120.0</xnat:flip>
+<xnat:sequence>*spcR_314ns</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM</xnat:imageType>
+<xnat:scanSequence>SE</xnat:scanSequence>
+<xnat:seqVariant>SK\SP</xnat:seqVariant>
+<xnat:scanOptions>PFP</xnat:scanOptions>
+<xnat:acqType>3D</xnat:acqType>
+<xnat:pixelBandwidth>745.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="7" type="rfMRI_Task1_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813191581771706611.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806387"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task1_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192044" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/7/DICOM/scan_7_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090691",xnat_imageScanData_xnat_imagescandata_id="3806387"]-->
+</xnat:file>
+<xnat:startTime>13:19:37</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task1_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="8" type="rfMRI_Task1_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813191581849506612.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806388"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task1_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>335</xnat:frames>
+<xnat:file label="DICOM" file_count="335" file_size="399327022" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/8/DICOM/scan_8_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090692",xnat_imageScanData_xnat_imagescandata_id="3806388"]-->
+</xnat:file>
+<xnat:startTime>13:19:38</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task1_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="9" type="rfMRI_Task2_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813261095857667769.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806389"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task2_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192176" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/9/DICOM/scan_9_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090693",xnat_imageScanData_xnat_imagescandata_id="3806389"]-->
+</xnat:file>
+<xnat:startTime>13:26:47</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task2_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="10" type="rfMRI_Task2_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813261095938767770.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806390"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task2_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>335</xnat:frames>
+<xnat:file label="DICOM" file_count="335" file_size="399373382" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/10/DICOM/scan_10_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090694",xnat_imageScanData_xnat_imagescandata_id="3806390"]-->
+</xnat:file>
+<xnat:startTime>13:26:48</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task2_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="11" type="rfMRI_Task3_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813332157313828927.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806391"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192180" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/11/DICOM/scan_11_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090695",xnat_imageScanData_xnat_imagescandata_id="3806391"]-->
+</xnat:file>
+<xnat:startTime>13:33:44</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="12" type="rfMRI_Task3_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813332157401328928.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806392"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>13</xnat:frames>
+<xnat:file label="DICOM" file_count="13" file_size="15497984" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/12/DICOM/scan_12_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090696",xnat_imageScanData_xnat_imagescandata_id="3806392"]-->
+</xnat:file>
+<xnat:startTime>13:33:45</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="13" type="rfMRI_Task3_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813341452701831530.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806393"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192178" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/13/DICOM/scan_13_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090697",xnat_imageScanData_xnat_imagescandata_id="3806393"]-->
+</xnat:file>
+<xnat:startTime>13:34:35</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="14" type="rfMRI_Task3_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813341452782531531.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806394"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>27</xnat:frames>
+<xnat:file label="DICOM" file_count="27" file_size="32188140" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/14/DICOM/scan_14_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090698",xnat_imageScanData_xnat_imagescandata_id="3806394"]-->
+</xnat:file>
+<xnat:startTime>13:34:36</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="15" type="rfMRI_Task3_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813354257755636770.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806395"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192178" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/15/DICOM/scan_15_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090699",xnat_imageScanData_xnat_imagescandata_id="3806395"]-->
+</xnat:file>
+<xnat:startTime>13:36:41</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="16" type="rfMRI_Task3_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813354257834936771.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806396"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>335</xnat:frames>
+<xnat:file label="DICOM" file_count="335" file_size="399373736" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/16/DICOM/scan_16_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090700",xnat_imageScanData_xnat_imagescandata_id="3806396"]-->
+</xnat:file>
+<xnat:startTime>13:36:41</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task3_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="17" type="SpinEchoFieldMap_AP_2.4_216_CE" UID="1.3.12.2.1107.5.2.43.67064.19800418134317834597928.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806397"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>SpinEchoFieldMap_AP_2.4_216_CE</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>3</xnat:frames>
+<xnat:file label="DICOM" file_count="3" file_size="3650824" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/17/DICOM/scan_17_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090701",xnat_imageScanData_xnat_imagescandata_id="3806397"]-->
+</xnat:file>
+<xnat:startTime>13:43:33</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>SpinEchoFieldMap_AP_2.4_216_CE</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>8000.0</xnat:tr>
+<xnat:te>66.0</xnat:te>
+<xnat:flip>90.0</xnat:flip>
+<xnat:sequence>epse2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="18" type="SpinEchoFieldMap_PA_2.4_216_CE" UID="1.3.12.2.1107.5.2.43.67064.1980041813435431312698479.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806398"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>SpinEchoFieldMap_PA_2.4_216_CE</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>3</xnat:frames>
+<xnat:file label="DICOM" file_count="3" file_size="3627622" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/18/DICOM/scan_18_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090702",xnat_imageScanData_xnat_imagescandata_id="3806398"]-->
+</xnat:file>
+<xnat:startTime>13:44:10</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>SpinEchoFieldMap_PA_2.4_216_CE</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>8000.0</xnat:tr>
+<xnat:te>66.0</xnat:te>
+<xnat:flip>90.0</xnat:flip>
+<xnat:sequence>epse2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="19" type="rfMRI_Task4_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813442921126499030.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806399"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task4_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192178" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/19/DICOM/scan_19_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090703",xnat_imageScanData_xnat_imagescandata_id="3806399"]-->
+</xnat:file>
+<xnat:startTime>13:45:01</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task4_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="20" type="rfMRI_Task4_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813442921208799031.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806400"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task4_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>335</xnat:frames>
+<xnat:file label="DICOM" file_count="335" file_size="399373924" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/20/DICOM/scan_20_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090704",xnat_imageScanData_xnat_imagescandata_id="3806400"]-->
+</xnat:file>
+<xnat:startTime>13:45:01</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task4_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="21" type="rfMRI_Task5_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813513489212760188.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806401"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task5_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192176" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/21/DICOM/scan_21_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090705",xnat_imageScanData_xnat_imagescandata_id="3806401"]-->
+</xnat:file>
+<xnat:startTime>13:52:14</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task5_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="22" type="rfMRI_Task5_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813513489310160189.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806402"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task5_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>335</xnat:frames>
+<xnat:file label="DICOM" file_count="335" file_size="399373114" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/22/DICOM/scan_22_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090706",xnat_imageScanData_xnat_imagescandata_id="3806402"]-->
+</xnat:file>
+<xnat:startTime>13:52:15</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task5_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="23" type="rfMRI_Task6_PA_MB4_2.4_216_1200_420fr_SBRef" UID="1.3.12.2.1107.5.2.43.67064.1980041813584856570921346.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806403"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task6_PA_MB4_2.4_216_1200_420fr_SBRef</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>1</xnat:frames>
+<xnat:file label="DICOM" file_count="1" file_size="1192180" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/23/DICOM/scan_23_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090707",xnat_imageScanData_xnat_imagescandata_id="3806403"]-->
+</xnat:file>
+<xnat:startTime>13:59:26</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task6_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="24" type="rfMRI_Task6_PA_MB4_2.4_216_1200_420fr" UID="1.3.12.2.1107.5.2.43.67064.1980041813584856660021347.0.0.0" project="NP1119" xsi:type="xnat:mrScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806404"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>rfMRI_Task6_PA_MB4_2.4_216_1200_420fr</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>MR</xnat:modality>
+<xnat:frames>335</xnat:frames>
+<xnat:file label="DICOM" file_count="335" file_size="399373950" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/24/DICOM/scan_24_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090708",xnat_imageScanData_xnat_imagescandata_id="3806404"]-->
+</xnat:file>
+<xnat:startTime>13:59:27</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>rfMRI_Task6_PA_MB4_2.4_216_1200_420fr</xnat:protocolName>
+<xnat:bodyPartExamined>BRAIN</xnat:bodyPartExamined>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+<xnat:parameters>
+<xnat:voxelRes x="2.4000000953674" y="2.4000000953674" z="2.4000000953674"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="720" y="720"/>
+<xnat:tr>1200.0</xnat:tr>
+<xnat:te>37.0</xnat:te>
+<xnat:flip>52.0</xnat:flip>
+<xnat:sequence>epfid2d1_90</xnat:sequence>
+<xnat:imageType>ORIGINAL\PRIMARY\M\MB\ND\NORM\MOSAIC</xnat:imageType>
+<xnat:scanSequence>EP</xnat:scanSequence>
+<xnat:seqVariant>SK\SS</xnat:seqVariant>
+<xnat:scanOptions>FS</xnat:scanOptions>
+<xnat:acqType>2D</xnat:acqType>
+<xnat:pixelBandwidth>2315.0</xnat:pixelBandwidth>
+</xnat:parameters>
+</xnat:scan>
+<xnat:scan ID="99" type="PhoenixZIPReport" UID="1.3.12.2.1107.5.2.43.67064.30000024040817484022300000966" project="NP1119" xsi:type="xnat:srScanData">
+<!--hidden_fields[xnat_imageScanData_id="3806405"]-->
+<xnat:image_session_ID>CNDA06_E43364</xnat:image_session_ID>
+<xnat:quality>usable</xnat:quality>
+<xnat:series_description>PhoenixZIPReport</xnat:series_description>
+<xnat:scanner manufacturer="SIEMENS" model="Prisma_fit">MRC35177</xnat:scanner>
+<xnat:modality>SR</xnat:modality>
+<xnat:frames>13</xnat:frames>
+<xnat:file label="DICOM" file_count="13" file_size="3550182" URI="/data/CNDA/archive/NP1119/arc001/test/SCANS/99/DICOM/scan_99_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog">
+<!--hidden_fields[xnat_abstractResource_id="7090709",xnat_imageScanData_xnat_imagescandata_id="3806405"]-->
+</xnat:file>
+<xnat:startTime>13:59:06</xnat:startTime>
+<xnat:start_date>1980-01-01</xnat:start_date>
+<xnat:protocolName>Phoenix Document</xnat:protocolName>
+</xnat:scan>
+</xnat:scans>
+<xnat:assessors>
+<xnat:assessor ID="CNDA14_E08720" project="NP1119" label="test_RAD_1713787739767" xsi:type="rad:radiologyReadData">
+<xnat:date>1980-01-01</xnat:date>
+<xnat:imageSession_ID>CNDA06_E43364</xnat:imageSession_ID>
+<rad:modality>MR</rad:modality>
+<rad:reader>J. Shimony</rad:reader>
+<rad:technique>Axial T1w, T2w, and T2*</rad:technique>
+<rad:finding normal_status="1"/>
+<rad:diagnosis>Normal. </rad:diagnosis>
+<rad:hippocampal_atrophy>None</rad:hippocampal_atrophy>
+<rad:cortical_atrophy>None</rad:cortical_atrophy>
+<rad:leukoaraiosis>None</rad:leukoaraiosis>
+<rad:large_infarcts>0</rad:large_infarcts>
+<rad:small_infarcts>0</rad:small_infarcts>
+<rad:microbleeds>0</rad:microbleeds>
+<rad:other_significant_findings>0</rad:other_significant_findings>
+<rad:aging_changes>Normal</rad:aging_changes>
+<rad:history>NP1119</rad:history>
+<rad:exam>Brain without contrast</rad:exam>
+<rad:followup_recommended>0</rad:followup_recommended>
+</xnat:assessor>
+</xnat:assessors>
+<xnat:dcmPatientId>test</xnat:dcmPatientId>
+<xnat:dcmPatientName>test</xnat:dcmPatientName>
+<xnat:dcmPatientBirthDate>1980-01-01</xnat:dcmPatientBirthDate>
+<xnat:dcmPatientWeight>4.0823318493</xnat:dcmPatientWeight>
+<xnat:fieldStrength>3.0</xnat:fieldStrength>
+</xnat:experiment>
+</xnat:experiments>
+</xnat:Subject>
