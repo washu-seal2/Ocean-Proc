@@ -158,10 +158,10 @@ def run_dcm2bids(source_dir:Path,
                     raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
                 
             # Clean up NORDIC files
-            separate_nordic_files = glob(f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}/*_part-*")
+            separate_nordic_files = glob(f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}/func/*_part-*")
             for f in separate_nordic_files:
                 os.remove(f)
-                
+
     except RuntimeError or subprocess.CalledProcessError as e:
         print(e)
         exit_program_early("Problem running 'dcm2bids'.")
