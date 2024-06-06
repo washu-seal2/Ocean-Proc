@@ -1,5 +1,8 @@
+#!/usr/bin/env python3
+
 from argparse import ArgumentParser
 from collections import OrderedDict
+from glob import glob
 from pathlib import Path
 import json
 import os
@@ -113,7 +116,7 @@ def run_dcm2bids(source_dir:Path,
         exit_program_early(f"Path {config_file} does not exist.")
     elif shutil.which('dcm2bids') == None:
         exit_program_early("Cannot locate program 'dcm2bids', make sure it is in your PATH.")
-
+    
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
                                  {'--skip_dcm2niix' if nifti else ''}
@@ -154,10 +157,23 @@ def run_dcm2bids(source_dir:Path,
                 if p.poll() != 0:
                     raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
                 
+            # Clean up NORDIC files
+            separate_nordic_files = glob(f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}/func/*_part-*")
+            for f in separate_nordic_files:
+                os.remove(f)
+
     except RuntimeError or subprocess.CalledProcessError as e:
         print(e)
         exit_program_early("Problem running 'dcm2bids'.")
-    
+
+    # Clean up tmp_dcm2bids directory
+    try:
+        tmp_path = f"{bids_output_dir.as_posix()}/tmp_dcm2bids/sub-{subject}_ses-{session}"
+        shutil.rmtree(tmp_path)
+    except Exception as e:
+        print(e)
+        print(f"There was a problem deleting the temporary directory at {tmp_path}")
+        
 
 def dicom_to_bids(subject:str, 
                   session:str, 
