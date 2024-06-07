@@ -10,6 +10,8 @@ python = "^3.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
+sphinx = "^7.3.7"
+twine = "^5.1.0"
 
 [tool.poetry.scripts]
 oceanproc = "oceanproc.ocean_proc:main"
