@@ -1,23 +1,21 @@
-[build-system]
-requires = ["setuptools >= 61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "ocean-proc"
-version = "0.0.1"
-requires-python = " >= 3.9 " 
-dependencies = [
-	"iniconfig==2.0.0",
-	"packaging==24.0",
-	"pluggy==1.5.0",
-	"pytest==8.2.0",
-]
+[tool.poetry]
+name = "oceanproc"
+version = "0.1.0"
+description = "MRI preprocessing for WUSTL Ocean labs"
+authors = ["Ramone Agard <agardr@wustl.edu>", "Joey Scanga <joeyscanga92@gmail.com>"]
 readme = "README.md"
-classifiers = [
-	"Development Status :: 2 - Pre-Alpha",
-	"Environment :: Console",
-	"Intended Audience :: Science/Research",
-	"Operating System :: POSIX :: Linux",
-]
 
+[tool.poetry.dependencies]
+python = "^3.10"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+sphinx = "^7.3.7"
+twine = "^5.1.0"
+
+[tool.poetry.scripts]
+oceanproc = "oceanproc.ocean_proc:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
