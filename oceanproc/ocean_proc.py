@@ -4,9 +4,9 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from bids_wrapper import dicom_to_bids, exit_program_early
-from group_series import map_fmap_to_func
-from oceanparse import OceanParser
+from .bids_wrapper import dicom_to_bids, exit_program_early
+from .group_series import map_fmap_to_func
+from .oceanparse import OceanParser
 import shlex
 import shutil
 from subprocess import Popen, PIPE
@@ -103,7 +103,7 @@ def run_fmri_prep(subject:str,
 
 def main():
     parser = OceanParser(
-            prog="ocean_proc.py", 
+            prog="oceanproc", 
             description="Ocean Labs adult MRI preprocessing",
             exit_on_error=False,
             fromfile_prefix_chars="@",
