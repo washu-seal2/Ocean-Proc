@@ -101,8 +101,7 @@ def run_fmri_prep(subject:str,
         exit_program_early("Program 'fmriprep-docker' has run into an error.")
 
 
-if __name__ == "__main__":
-
+def main():
     parser = OceanParser(
             prog="ocean_proc.py", 
             description="Ocean Labs adult MRI preprocessing",
@@ -210,3 +209,5 @@ if __name__ == "__main__":
     print("####### [DONE] Finished all processing, exiting now #######")
 
     
+if __name__ == "__main__":
+    main()
