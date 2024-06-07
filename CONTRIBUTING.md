@@ -44,7 +44,4 @@ This file will allow you to upload to pypi without needing to reenter the API to
 
 Then, to upload the new version:
 
-`twine upload dist/*`
-
-
-
+`poetry run twine upload dist/*`
