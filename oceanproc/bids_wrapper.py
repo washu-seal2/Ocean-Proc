@@ -127,6 +127,8 @@ def run_dcm2bids(source_dir:Path,
         already exists. Want to force rerun dcm2bids? [y/n]
         """))
         force_dcm2bids = True if force_dcm2bids_prompt[0].upper() == 'Y' else False
+        if force_dcm2bids:
+            shutil.rmtree(path_that_exists)
     
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
