@@ -9,6 +9,8 @@ from .group_series import map_fmap_to_func
 from .oceanparse import OceanParser
 import shlex
 import shutil
+import random
+import string
 from subprocess import Popen, PIPE
 import json
 
@@ -45,6 +47,10 @@ def make_option(key, value, delimeter=" "):
         return first_part[:-1]
     elif type(value) == list:
         return first_part + delimeter.join(value)
+    elif type(value) == str and key == 'work_dir':
+        uniq_dir = f"{os.path.join(value, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20)))}" # Make 20-char long unique working directory for each subject/session
+        os.mkdir(uniq_dir)
+        return first_part + uniq_dir
     elif type(value) == str:
         return first_part + value
 
