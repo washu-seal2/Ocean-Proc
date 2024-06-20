@@ -48,9 +48,13 @@ def make_option(key, value, delimeter=" "):
     elif type(value) == list:
         return first_part + delimeter.join(value)
     elif type(value) == str and key == 'work_dir':
-        uniq_dir = f"{os.path.join(value, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20)))}" # Make 20-char long unique working directory for each subject/session
-        os.mkdir(uniq_dir)
-        return first_part + uniq_dir
+        dir_is_unique = False
+        while not dir_is_unique:
+            unique_dir = f"{os.path.join(value, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20)))}" # Make 20-char long unique working directory for each subject/session
+            if not os.path.isdir(unique_dir):
+                dir_is_unique = True
+        os.mkdir(unique_dir)
+        return first_part + unique_dir
     elif type(value) == str:
         return first_part + value
 
