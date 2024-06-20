@@ -11,6 +11,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from textwrap import dedent
 import xml.etree.ElementTree as et
 
 
@@ -116,6 +117,16 @@ def run_dcm2bids(source_dir:Path,
         exit_program_early(f"Path {config_file} does not exist.")
     elif shutil.which('dcm2bids') == None:
         exit_program_early("Cannot locate program 'dcm2bids', make sure it is in your PATH.")
+
+    if os.path.isdir(path_that_exists := f"{bids_output_dir.as_posix()}/sub-{subject}"):
+        force_dcm2bids_prompt = input(dedent(f"""
+        Path to dcm2bids output: 
+
+        {path_that_exists}
+
+        already exists. Want to force rerun dcm2bids? [y/n]
+        """))
+        force_dcm2bids = True if force_dcm2bids_prompt[0].upper() == 'Y' else False
     
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
@@ -124,7 +135,9 @@ def run_dcm2bids(source_dir:Path,
                                  -p {subject} 
                                  -s {session} 
                                  -c {config_file.as_posix()} 
-                                 -o {bids_output_dir.as_posix()}""")
+                                 -o {bids_output_dir.as_posix()}
+                                 {'--force_dcm2bids' if force_dcm2bids else ''}
+                                 """)
     try:
         print("####### Running first round of Dcm2Bids ########")
         # subprocess.check_output(helper_command) # run helper command to generate json/.nii files; throw error if fail
