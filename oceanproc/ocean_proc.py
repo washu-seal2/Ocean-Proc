@@ -9,6 +9,8 @@ from .group_series import map_fmap_to_func
 from .oceanparse import OceanParser
 import shlex
 import shutil
+import random
+import string
 from subprocess import Popen, PIPE
 import json
 
@@ -45,6 +47,14 @@ def make_option(key, value, delimeter=" "):
         return first_part[:-1]
     elif type(value) == list:
         return first_part + delimeter.join(value)
+    elif type(value) == str and key == 'work_dir':
+        dir_is_unique = False
+        while not dir_is_unique:
+            unique_dir = f"{os.path.join(value, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20)))}" # Make 20-char long unique working directory for each subject/session
+            if not os.path.isdir(unique_dir):
+                dir_is_unique = True
+        os.mkdir(unique_dir)
+        return first_part + unique_dir
     elif type(value) == str:
         return first_part + value
 
@@ -130,6 +140,8 @@ def main():
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
     # config_arguments.add_argument("--nordic", "-n", action="store_true", required=False,
     #                     help="Flag to indicate that this session contains nordic data. The '--bids_config2' option should also be specified")
+    config_arguments.add_argument("--skip_bids_validation", action="store_true",
+                        help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
     config_arguments.add_argument("--derivs_path", "-d", required=True,
                         help="The path to the BIDS formated derivatives directory for this subject")
     config_arguments.add_argument("--work_dir", "-w", required=True,
@@ -195,7 +207,7 @@ def main():
 
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
-    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir"}
+    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation"}
     fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo], "=") for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
