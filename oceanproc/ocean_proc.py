@@ -201,7 +201,7 @@ def main():
 
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
-    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir"}
+    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation"}
     fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo], "=") for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
