@@ -10,33 +10,9 @@ import re
 import shlex
 import shutil
 import subprocess
-import sys
 from textwrap import dedent
 import xml.etree.ElementTree as et
-
-
-def exit_program_early(msg:str):
-    """
-    Exit the program while printing parameter 'msg'.
-
-    :param msg: error message to display.
-    :type param: str
-
-    """
-    print(f"---[ERROR]: {msg} \nExiting the program now...")
-    sys.exit(1)
-
-def prompt_user_continue(msg:str):
-    """
-    Prompt the user to continue with a custom message.
-
-    :param msg: prompt message to display.
-    :type msg: str
-
-    """
-    user_continue = input(f"--- {msg} (press 'y' for yes, other input will exit the program) ---")
-    if user_continue != 'y':
-        exit_program_early("User-prompted termination.")
+from utils import exit_program_early
 
 
 def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
@@ -118,19 +94,20 @@ def run_dcm2bids(source_dir:Path,
     elif shutil.which('dcm2bids') == None:
         exit_program_early("Cannot locate program 'dcm2bids', make sure it is in your PATH.")
 
-    force_dcm2bids = False
+    # force_dcm2bids = False
 
     if os.path.isdir(path_that_exists := f"{bids_output_dir.as_posix()}/sub-{subject}"):
-        force_dcm2bids_prompt = input(dedent(f"""
-        Path to dcm2bids output: 
+        shutil.rmtree(path_that_exists)
+        # force_dcm2bids_prompt = input(dedent(f"""
+        # Path to dcm2bids output: 
 
-        {path_that_exists}
+        # {path_that_exists}
 
-        already exists. Want to force rerun dcm2bids? [y/n]
-        """))
-        force_dcm2bids = True if force_dcm2bids_prompt[0].upper() == 'Y' else False
-        if force_dcm2bids:
-            shutil.rmtree(path_that_exists)
+        # already exists. Want to force rerun dcm2bids? [y/n]
+        # """))
+        # force_dcm2bids = True if force_dcm2bids_prompt[0].upper() == 'Y' else False
+        # if force_dcm2bids:
+        #     shutil.rmtree(path_that_exists)
     
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
@@ -140,7 +117,6 @@ def run_dcm2bids(source_dir:Path,
                                  -s {session} 
                                  -c {config_file.as_posix()} 
                                  -o {bids_output_dir.as_posix()}
-                                 {'--force_dcm2bids' if force_dcm2bids else ''}
                                  """)
     try:
         print("####### Running first round of Dcm2Bids ########")
@@ -261,8 +237,6 @@ if __name__ == "__main__":
                         help="dcm2bids config json file")
     parser.add_argument("-n", "--nordic_config", 
                         help="Second dcm2bids config json file used for NORDIC processing")
-    # parser.add_argument("--nordic", action="store_true", 
-    #                     help="Flag to indicate there are nordic runs in this data")
     parser.add_argument("--nifti", action='store_true', 
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
     args = parser.parse_args()

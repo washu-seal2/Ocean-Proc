@@ -4,8 +4,10 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from .bids_wrapper import dicom_to_bids, exit_program_early
+from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
+from .events_long import create_events_and_confounds
+from .utils import exit_program_early
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -127,20 +129,33 @@ def main():
                         help="The identifier of the subject to preprocess")
     session_arguments.add_argument("--session", "-se", required=True,
                         help="The identifier of the session to preprocess")
-    config_arguments.add_argument("--bids_path", "-b",  required=True,
-                        help="The path to the directory containing the raw nifti data for all subjects, in BIDS format") 
     session_arguments.add_argument("--source_data", "-sd", required=True,
                         help="The path to the directory containing the raw DICOM files for this subject and session")
     session_arguments.add_argument("--xml_path", "-x", required=True,
                         help="The path to the xml file for this subject and session")
+    session_arguments.add_argument("--fs_subjects_dir", "-fs", 
+                        help="The path to the directory that contains previous FreeSurfer outputs/derivatives to use for fMRIPrep. If empty, this is the path where new FreeSurfer outputs will be stored.")
+    session_arguments.add_argument("--skip_dcm2bids", action="store_true",
+                        help="Flag to indicate that dcm2bids does not need to be run for this subject and session")
+    session_arguments.add_argument("--skip_fmap_pairing", action="store_true",
+                        help="Flag to indicate that the pairing of fieldmaps to BOLD runs does not need to be performed for this subject and session")
+    session_arguments.add_argument("--skip_fmriprep", action="store_true",
+                        help="Flag to indicate that fMRIPrep does not need to be run for this subject and session")
+    session_arguments.add_argument("--skip_event_files", action="store_true",
+                        help="Flag to indicate that the making of a long formatted events file is not needed for the subject and session")
+    session_arguments.add_argument("--export_args", "-ea", 
+                        help="Path to a file to save the current configuration arguments")
+
+    config_arguments.add_argument("--bids_path", "-b",  required=True,
+                        help="The path to the directory containing the raw nifti data for all subjects, in BIDS format") 
     config_arguments.add_argument("--bids_config", "-c", required=True,
                         help="The path to the dcm2bids config file to use for this subject and session")
     config_arguments.add_argument("--nordic_config", "-n", 
                         help="The path to the second dcm2bids config file to use for this subject and session. This implies that the session contains NORDIC data")
     config_arguments.add_argument("--nifti", action="store_true",
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
-    # config_arguments.add_argument("--nordic", "-n", action="store_true", required=False,
-    #                     help="Flag to indicate that this session contains nordic data. The '--bids_config2' option should also be specified")
+    config_arguments.add_argument("--fd_spike_threshold", "-fd", type=float, 
+                        help="framewise displacement threshold (in mm) to determine outlier frames")
     config_arguments.add_argument("--skip_bids_validation", action="store_true",
                         help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
     config_arguments.add_argument("--leave_workdir", action="store_true",
@@ -151,16 +166,7 @@ def main():
                         help="The path to the working directory used to store intermediate files")
     config_arguments.add_argument("--fs_license", "-l", required=True,
                         help="The path to the license file for the local installation of FreeSurfer")
-    session_arguments.add_argument("--fs_subjects_dir", "-fs", 
-                        help="The path to the directory that contains previous FreeSurfer outputs/derivatives to use for fMRIPrep. If empty, this is the path where new FreeSurfer outputs will be stored.")
-    session_arguments.add_argument("--skip_dcm2bids", action="store_true",
-                        help="Flag to indicate that dcm2bids does not need to be run for this subject and session")
-    session_arguments.add_argument("--skip_fmap_pairing", action="store_true",
-                        help="Flag to indicate that the pairing of fieldmaps to BOLD runs does not need to be performed for this subject and session")
-    session_arguments.add_argument("--skip_fmriprep", action="store_true",
-                        help="Flag to indicate that fMRIPrep does not need to be run for this subject and session")
-    session_arguments.add_argument("--export_args", "-ea", 
-                        help="Path to a file to save the current configuration arguments")
+    
 
     args = parser.parse_args()
 
@@ -210,7 +216,7 @@ def main():
 
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
-    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation"}
+    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation", "fd_spike_threshold"}
     fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo], "=") for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
@@ -219,6 +225,17 @@ def main():
             bids_path=Path(args.bids_path),
             derivs_path=Path(args.derivs_path),
             option_chain=fmrip_opt_chain
+        )
+
+    
+    ##### Create long formatted event files #####
+    if not args.skip_event_files:
+        create_events_and_confounds(
+            bids_path=args.bids_path,
+            derivs_path=args.derivs_path,
+            sub=args.subject,
+            ses=args.session,
+            fd_thresh=args.fd_spike_threshold
         )
 
     print("####### [DONE] Finished all processing, exiting now #######")

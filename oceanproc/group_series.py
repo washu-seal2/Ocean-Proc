@@ -8,7 +8,7 @@ from collections import defaultdict
 import argparse
 import re
 import xml.etree.ElementTree as et
-from .bids_wrapper import exit_program_early
+from .utils import exit_program_early
 
 def get_locals_from_xml(xml_path: str) -> set:
     """
