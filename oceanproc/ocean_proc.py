@@ -93,6 +93,7 @@ def run_fmri_prep(subject:str,
                                  --participant-label={subject}
                                  --cifti-output={cifti_out_res}
                                  --use-syn-sdc=warn
+                                 --clean-workdir
                                  {option_chain}
                                  {bids_path.as_posix()}
                                  {derivs_path.as_posix()}
@@ -142,6 +143,8 @@ def main():
     #                     help="Flag to indicate that this session contains nordic data. The '--bids_config2' option should also be specified")
     config_arguments.add_argument("--skip_bids_validation", action="store_true",
                         help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
+    config_arguments.add_argument("--leave_workdir", action="store_true",
+                        help="Don't clean up working directory after fmriprep has finished. We can do this since we're creating a new working directory for every instance of fmriprep (this option should be used as a debugging tool).")
     config_arguments.add_argument("--derivs_path", "-d", required=True,
                         help="The path to the BIDS formated derivatives directory for this subject")
     config_arguments.add_argument("--work_dir", "-w", required=True,
