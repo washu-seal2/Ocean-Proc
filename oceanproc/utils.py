@@ -21,5 +21,8 @@ def prompt_user_continue(msg:str) -> bool:
     :type msg: str
 
     """
-    user_continue = input(f"--- {msg} (press 'y' for yes, other input will mean no) ---")
+    user_continue = input(f"""
+        {msg} 
+        ---(press 'y' for yes, other input will mean no) 
+    """)
     return user_continue.lower() == "y"

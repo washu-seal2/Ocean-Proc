@@ -7,21 +7,22 @@ from pathlib import Path
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, pro
+from .utils import exit_program_early, prompt_user_continue
 from oceanparse import OceanParser
 import shlex
 import shutil
 from subprocess import Popen, PIPE
 import json
+from textwrap import dedent
 
 
 def make_work_directory(dir_path:str, subject:str, session:str) -> str:
     dir_to_make = f"{Path(dir_path).as_posix()}/sub-{subject}_ses-{session}"
     if os.path.isdir(dir_to_make):
-        want_to_delete = prompt_user_continue(
-            "A work directory already exists for this subject and session. " + 
-            "Would you like to delete its contents and start fresh?"
-            )
+        want_to_delete = prompt_user_continue(dedent("""
+            A work directory already exists for this subject and session. 
+            Would you like to delete its contents and start fresh?
+            """))
         if want_to_delete:
             shutil.rmtree(dir_to_make)
     os.makedirs(dir_to_make, exist_ok=True)

@@ -12,7 +12,7 @@ import shutil
 import subprocess
 from textwrap import dedent
 import xml.etree.ElementTree as et
-from .utils import exit_program_early
+from .utils import exit_program_early, prompt_user_continue
 
 
 def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
@@ -34,9 +34,10 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
         
     tree = et.parse(xml_file)
     prefix = "{" + str(tree.getroot()).split("{")[-1].split("}")[0] + "}"
-    scan_element_list = list(tree.iterfind(f"{prefix}scans"))
+    scan_element_list = list(tree.iter(f"{prefix}scans"))
     
     if len(scan_element_list) != 1:
+        print(len(scan_element_list))
         exit_program_early(f"Error parsing the xml file provided. Found none or more than one scan groups")
     
     scans = scan_element_list[0]
@@ -99,19 +100,17 @@ def run_dcm2bids(source_dir:Path,
 
     # force_dcm2bids = False
 
-    if os.path.isdir(path_that_exists := f"{bids_output_dir.as_posix()}/sub-{subject}"):
-        shutil.rmtree(path_that_exists)
-        # force_dcm2bids_prompt = input(dedent(f"""
-        # Path to dcm2bids output: 
-
-        # {path_that_exists}
-
-        # already exists. Want to force rerun dcm2bids? [y/n]
-        # """))
-        # force_dcm2bids = True if force_dcm2bids_prompt[0].upper() == 'Y' else False
-        # if force_dcm2bids:
-        #     shutil.rmtree(path_that_exists)
-    
+    if os.path.isdir(path_that_exists := f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}"):
+        ans = prompt_user_continue(dedent(f"""
+                                    A raw data bids path for this subject and session already exists. 
+                                    Would you like to delete its contents and rerun dcm2bids? If not,
+                                    dcm2bids will be skipped.
+                                          """))
+        if ans:
+            shutil.rmtree(path_that_exists)
+        else:
+            return
+           
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
                                  {'--skip_dcm2niix' if nifti else ''}
