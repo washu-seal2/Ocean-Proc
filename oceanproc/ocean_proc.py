@@ -7,15 +7,25 @@ from pathlib import Path
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early
-from .oceanparse import OceanParser
+from .utils import exit_program_early, pro
+from oceanparse import OceanParser
 import shlex
 import shutil
-import random
-import string
 from subprocess import Popen, PIPE
 import json
 
+
+def make_work_directory(dir_path:str, subject:str, session:str) -> str:
+    dir_to_make = f"{Path(dir_path).as_posix()}/sub-{subject}_ses-{session}"
+    if os.path.isdir(dir_to_make):
+        want_to_delete = prompt_user_continue(
+            "A work directory already exists for this subject and session. " + 
+            "Would you like to delete its contents and start fresh?"
+            )
+        if want_to_delete:
+            shutil.rmtree(dir_to_make)
+    os.makedirs(dir_to_make, exist_ok=True)
+    return dir_to_make
 
 def make_option(key, value, delimeter=" "):
     """
@@ -43,22 +53,15 @@ def make_option(key, value, delimeter=" "):
     :rtype: str
     """
     first_part = f"--{key.replace('_', '-')}{delimeter}"
-    if value == None:
-        return ""
-    elif type(value) == bool and value:
+
+    if type(value) == bool and value:
         return first_part[:-1]
     elif type(value) == list:
         return first_part + delimeter.join(value)
-    elif type(value) == str and key == 'work_dir':
-        dir_is_unique = False
-        while not dir_is_unique:
-            unique_dir = f"{os.path.join(value, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20)))}" # Make 20-char long unique working directory for each subject/session
-            if not os.path.isdir(unique_dir):
-                dir_is_unique = True
-        os.mkdir(unique_dir)
-        return first_part + unique_dir
     elif type(value) == str:
         return first_part + value
+    else:
+        return ""
 
 
 def run_fmri_prep(subject:str,
@@ -154,8 +157,8 @@ def main():
                         help="The path to the second dcm2bids config file to use for this subject and session. This implies that the session contains NORDIC data")
     config_arguments.add_argument("--nifti", action="store_true",
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
-    config_arguments.add_argument("--fd_spike_threshold", "-fd", type=float, 
-                        help="framewise displacement threshold (in mm) to determine outlier frames")
+    config_arguments.add_argument("--fd_spike_threshold", "-fd", type=float, default=0.9,
+                        help="framewise displacement threshold (in mm) to determine outlier framee (Default is 0.9).")
     config_arguments.add_argument("--skip_bids_validation", action="store_true",
                         help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
     config_arguments.add_argument("--leave_workdir", action="store_true",
@@ -167,9 +170,9 @@ def main():
     config_arguments.add_argument("--fs_license", "-l", required=True,
                         help="The path to the license file for the local installation of FreeSurfer")
     
-
     args = parser.parse_args()
 
+    args.work_dir = make_work_directory(args.work_dir, args.subject, args.session)
 
     ##### Export the current configuration arguments to a file #####
     if args.export_args:
@@ -216,6 +219,7 @@ def main():
 
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
+
     fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation", "fd_spike_threshold"}
     fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo], "=") for fo in fmrip_options if fo in all_opts])
 

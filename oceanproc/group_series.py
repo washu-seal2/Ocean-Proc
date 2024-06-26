@@ -27,7 +27,6 @@ def get_locals_from_xml(xml_path: str) -> set:
         exit_program_early(f"Error parsing the xml file provided. Found none or more than one scan groups")
     
     scans = scan_element_list[0]
-    print(scans)
     localizers = set()
     for s in scans:
         if re.match(r"Localizer.*", s.get("type")) and s.find(f'{prefix}quality').text == "usable":

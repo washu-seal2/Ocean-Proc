@@ -12,7 +12,7 @@ import shutil
 import subprocess
 from textwrap import dedent
 import xml.etree.ElementTree as et
-from utils import exit_program_early
+from .utils import exit_program_early
 
 
 def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
@@ -206,17 +206,6 @@ def dicom_to_bids(subject:str,
     bids_config = Path(bids_config)
     if nordic_config:
         nordic_config = Path(nordic_config)
-
-    # if nordic: 
-    #     if bids_config2:
-    #         bids_config2 = Path(bids_config2)
-    #     if not bids_config2:
-    #         print("---[WARNING]: Nordic flag set, but a second dcm2bids config file was not provided")
-    #         prompt_user_continue("Continue without NORDIC processing?")
-    # if bids_config2:
-    #     if not nordic:
-    #         print("---[WARNING]: Second dcm2bids config file was provided, but the nordic flag was not set")
-    #         prompt_user_continue("Continue without NORDIC processing?")
 
     run_dcm2bids(source_dir, bids_dir, bids_config, subject, session, nordic_config, nifti)
     remove_unusable_runs(xml_path, bids_dir, subject)
