@@ -8,6 +8,9 @@
 
 `oceanproc` is meant to make the process of setting up a BIDS-compliant dataset as easy as possible by allowing for data fresh off the scanner to be used as input. As pictured in the diagram above, all the input that is needed is 1) the raw data, either in DICOM or NIFTI format, and 2) an XML file stored on CNDA containing usability scores for each scan (this is also used to pair fieldmaps to BOLD runs via a 'nearest neighbor' algorithm). 
 
+Outside of the processing done by `fmriprep`, `oceanproc` can also handle the combining of [NORDIC mag/phase files](https://github.com/SteenMoeller/NORDIC_Raw/blob/main/README.md). 
+
+
 ## Usage
 
 ```
