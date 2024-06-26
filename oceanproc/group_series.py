@@ -21,9 +21,12 @@ def get_locals_from_xml(xml_path: str) -> set:
     """
     tree = et.parse(xml_path)
     prefix = "{" + str(tree.getroot()).split("{")[-1].split("}")[0] + "}"
-    scans = tree.getroot().find(
-        f"./{prefix}experiments/{prefix}experiment/{prefix}scans"
-    )
+    scan_element_list = list(tree.iterfind(f"{prefix}scans"))
+    
+    if len(scan_element_list) != 1:
+        exit_program_early(f"Error parsing the xml file provided. Found none or more than one scan groups")
+    
+    scans = scan_element_list[0]
     print(scans)
     localizers = set()
     for s in scans:
