@@ -37,7 +37,6 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     scan_element_list = list(tree.iter(f"{prefix}scans"))
     
     if len(scan_element_list) != 1:
-        print(len(scan_element_list))
         exit_program_early(f"Error parsing the xml file provided. Found none or more than one scan groups")
     
     scans = scan_element_list[0]
