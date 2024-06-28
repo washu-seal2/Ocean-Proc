@@ -1,9 +1,6 @@
 oceanproc package
 =================
 
-Submodules
-----------
-
 oceanproc.bids\_wrapper module
 ------------------------------
 
@@ -32,14 +29,6 @@ oceanproc.oceanparse module
 ---------------------------
 
 .. automodule:: oceanproc.oceanparse
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: oceanproc
    :members:
    :undoc-members:
    :show-inheritance:
