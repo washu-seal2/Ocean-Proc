@@ -10,8 +10,8 @@ Welcome to oceanproc's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-    usage/quickstart
-    usage/installation
+   apifolder/oceanproc
+   apifolder/modules
 
 
 
