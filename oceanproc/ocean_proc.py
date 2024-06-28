@@ -8,7 +8,7 @@ from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
 from .utils import exit_program_early, prompt_user_continue
-from oceanparse import OceanParser
+from .oceanparse import OceanParser
 import shlex
 import shutil
 from subprocess import Popen, PIPE
