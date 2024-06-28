@@ -4,3 +4,12 @@ __pycache__/
 .venv/
 dist/
 ocean_proc.egg-info/
+build/
+_build/
+*.html
+*.js
+*.inv
+*.pickle
+*.pyc
+.doctrees/
+.jupyter_cache/
