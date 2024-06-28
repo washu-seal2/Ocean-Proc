@@ -186,13 +186,13 @@ def dicom_to_bids(subject:str,
     :param session: Session name (ex. 'ses-01', session would be '01')
     :type session: str
     :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
-    :type source_dir: pathlib.Path
+    :type source_dir: str
     :param bids_dir: Path to the bids directory to store the newly made NIFTI files
-    :type bids_dir: pathlib.Path
+    :type bids_dir: str
     :param bids_config: Path to dcm2bids config file, which maps raw sourcedata to BIDS-compliant counterpart
-    :type bids_config: pathlib.Path
+    :type bids_config: str
     :param nordic_config: Path to second dcm2bids config file, needed for additional post processing if NORDIC data that one BIDS config file can't handle.
-    :type nordic_config: pathlib.Path
+    :type nordic_config: str
     :param nifti: Specify that the soure directory contains NIFTI files instead of DICOM
     :type nifti: bool
     """
