@@ -32,7 +32,7 @@ Since ``oceanproc`` involves the use of a Docker container with root permissions
 Set up your dataset directory
 -----------------------------
 
-From this point, I'm assuming you're using some sort of UNIX-flavored shell, either on your local computer or on a remote node.
+From this point, I'm assuming you're using some sort of UNIX-flavored shell, either on your local computer or on a remote node. These include Bash, zsh, csh, etc.
 
 First, make a directory titled ``my_bids_dataset``, like so::
 
@@ -67,5 +67,58 @@ Here's a small breakdown of what these folders mean, from top to bottom:
 
     rm -rf tmp_dcm2bids
 
+Set up the ``sourcedata`` directory
+-----------------------------------
+
+The structure of this directory does not matter, as it is only for storing raw data in non-BIDS format, which presumably will contain some PHI (and will not be shared). In both cases, move the top-level directory (detailed in the examples below) into the ``sourcedata`` directory, under any name you'll be able to remember.
+
+DICOM
+^^^^^
+
+``oceanproc`` supports raw data both in DICOM and NIFTI format. If your data is in DICOM format, ``oceanproc`` will assume that the data is in the same structure that it is in when downloaded from the CNDA database::
+
+    your_data_directory
+    ├── 1
+    │   └── DICOM
+    │       ├── xxxxxxxxx.x.xx.x.xxxx.x.x.xx.xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x-x-jxxxmb.dcm
+    │       └── x.x.xx.x.xxxx.x.x.xx.xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x-x-bqomui.dcm
+    ├── 10
+    │   └── DICOM
+    │       └── x.x.xx.x.xxxx.x.x.xx.xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xx-x-bimxxp.dcm
+    ├── 11
+    │   └── DICOM
+    │       └── x.x.xx.x.xxxx.x.x.xx.xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xx-x-bimxxp.dcm
+    ...
+
+The top-level session directory should contain directories named after each series number, a subdirectory in each of these named 'DICOM', and then all the .dcm files for that series number kept in this directory. 
+
+NIFTI
+^^^^^
+
+For NIFTI raw data, just keep all of the .nii (or .nii.gz) and .json files in the same level, as in this example::
+
+    your_data_directory/
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_2.json
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_2.nii.gz
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_30.json
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_30.nii.gz
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_31.json
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_31.nii.gz
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_32.json
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_32.nii.gz
+    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_33.json
+    ...
+
+
+Building your dcm2bids config file
+----------------------------------
+
+A full detailed guide to building ``dcm2bids`` config files can be found `here <https://unfmontreal.github.io/Dcm2Bids/3.1.1/tutorial/first-steps/#how-to-use-this-tutorial>`_. 
+
+This config is needed to determine how to name each series run, and where within the final BIDS hierarchy it will live. This naming convention can be determined by a number of factors, all of which are derived from the .json "sidecar" file containing metadata for the scan. 
+
+If your raw data is in the ``sourcedata`` directory and in DICOM format, the command ``dcm2bids_helper`` can generate a list of these sidecar files with the metadata needed to make the config; if it's already in NIFTI format, you can look through each of these files to get the identifying info that you'll need. 
+
+ | 2024-07-03 Wed 12:38 PM
 
 
