@@ -98,16 +98,15 @@ NIFTI
 For NIFTI raw data, just keep all of the .nii (or .nii.gz) and .json files in the same level, as in this example::
 
     your_data_directory/
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_2.json
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_2.nii.gz
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_30.json
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_30.nii.gz
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_31.json
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_31.nii.gz
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_32.json
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_32.nii.gz
-    ├── DICOM_AAHScout_xxxxxxxxxxxxxx_33.json
+    ├── ...._1.json
+    ├── ...._1.nii.gz
+    ├── ...._2.json
+    ├── ...._2.nii.gz
+    ├── ...._3.json
+    ├── ...._3.nii.gz
     ...
+    ├── ...._n.json
+    ├── ...._n.nii.gz
 
 
 Building your dcm2bids config file
@@ -119,6 +118,41 @@ This config is needed to determine how to name each series run, and where within
 
 If your raw data is in the ``sourcedata`` directory and in DICOM format, the command ``dcm2bids_helper`` can generate a list of these sidecar files with the metadata needed to make the config; if it's already in NIFTI format, you can look through each of these files to get the identifying info that you'll need. 
 
- | 2024-07-03 Wed 12:38 PM
+Here's a brief example of what a mapping of fieldmaps into BIDS format would look like in a config file::
+
+    {
+        "descriptions": [
+            {
+                "datatype": "fmap",
+                "suffix": "epi",
+                "custom_entities": "dir-AP",
+                "criteria": {
+                    "SeriesDescription": "SpinEchoFieldMap_AP_2p4mm", 	
+                "ImageTypeText": ["ORIGINAL", "PRIMARY", "M", "ND"]
+                }
+            },
+            {
+                "datatype": "fmap",
+                "suffix": "epi",
+                "custom_entities": "dir-PA",
+                "criteria": {
+                    "SeriesDescription": "SpinEchoFieldMap_PA_2p4mm", 	
+                "ImageTypeText": ["ORIGINAL", "PRIMARY", "M", "ND"]
+                }
+            }
+        ]
+    } 
+
+Let's break down what these items mean.
+
+* ``"descriptions"``: This top-level field in the .json file will contain a list of mappings from raw NIFTI format into BIDS format.
+* ``"datatype"``: This is a mandatory field, and describes under which subfolder below the session level this series will be contained in. The BIDS v1.2.0 specification defines the following six:
+    * ``"anat"`` 
+    * ``"beh"``
+    * ``"dwi"``
+    * ``"fmap"``
+    * ``"func"``
+    * ``"meg"``
+
 
 
