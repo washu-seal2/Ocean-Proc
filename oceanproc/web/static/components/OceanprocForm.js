@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { FileBrowser } from './FileBrowser.js'
 
-export function InitialForm(props) {
+export function OceanprocForm(props) {
 	const [displayRestOfForm, setDisplayRestOfForm] = useState(false)
 	const [bidsPath, setBidsPath] = useState("")
 
