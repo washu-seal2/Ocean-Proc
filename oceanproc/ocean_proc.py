@@ -28,6 +28,7 @@ def make_work_directory(dir_path:str, subject:str, session:str) -> str:
     os.makedirs(dir_to_make, exist_ok=True)
     return dir_to_make
 
+
 def make_option(key, value, delimeter=" "):
     """
     Generate a string, representing an option that gets fed into a subprocess.
@@ -68,7 +69,8 @@ def make_option(key, value, delimeter=" "):
 def run_fmri_prep(subject:str,
                   bids_path:Path,
                   derivs_path:Path,
-                  option_chain:str):
+                  option_chain:str,
+                  remove_work_folder:str=None):
     """
     Run fmriprep with parameters.
 
@@ -80,8 +82,12 @@ def run_fmri_prep(subject:str,
     :type derivs_path: pathlib.Path
     :param option_chain: String containing generated list of options built by make_option().
     :type option_chain: str
+    :param remove_work_folder: Path to the working directory that will be deleted upon completion or error (default None)
+    :type remove_work_folder: str
     :raise RuntimeError: If fmriprep throws an error, or exits with a non-zero exit code.
     """
+    clean_up = lambda : shutil.rmtree(remove_work_folder) if remove_work_folder else None
+
     print("####### Starting fMRIPrep #######")
     if not bids_path.exists():
         exit_program_early(f"Bids path {bids_path} does not exist.")
@@ -89,6 +95,8 @@ def run_fmri_prep(subject:str,
         exit_program_early(f"Derivatives path {derivs_path} does not exist.")
     elif shutil.which('fmriprep-docker') == None:
         exit_program_early("Cannot locate program 'fmriprep-docker', make sure it is in your PATH.")
+
+    
 
     uid = Popen(["id", "-u"], stdout=PIPE).stdout.read().decode("utf-8").strip()
     gid = Popen(["id", "-g"], stdout=PIPE).stdout.read().decode("utf-8").strip()
@@ -115,7 +123,10 @@ def run_fmri_prep(subject:str,
                 raise RuntimeError("'fmriprep-docker' has ended with a non-zero exit code.")
     except RuntimeError as e:
         print(e) 
-        exit_program_early("Program 'fmriprep-docker' has run into an error.")
+        exit_program_early("Program 'fmriprep-docker' has run into an error.", clean_up)
+    clean_up()
+    
+
 
 
 def main():
@@ -149,6 +160,8 @@ def main():
                         help="Flag to indicate that the making of a long formatted events file is not needed for the subject and session")
     session_arguments.add_argument("--export_args", "-ea", 
                         help="Path to a file to save the current configuration arguments")
+    session_arguments.add_argument("--keep_work_dir", action="store_true",
+                        help="Flag to stop the deletion of the fMRIPrep working directory")
 
     config_arguments.add_argument("--bids_path", "-b",  required=True,
                         help="The path to the directory containing the raw nifti data for all subjects, in BIDS format") 
@@ -229,7 +242,8 @@ def main():
             subject=args.subject, 
             bids_path=Path(args.bids_path),
             derivs_path=Path(args.derivs_path),
-            option_chain=fmrip_opt_chain
+            option_chain=fmrip_opt_chain,
+            remove_work_folder=None if args.keep_work_dir else args.work_dir
         )
 
     

@@ -97,7 +97,14 @@ def run_dcm2bids(source_dir:Path,
     elif shutil.which('dcm2bids') == None:
         exit_program_early("Cannot locate program 'dcm2bids', make sure it is in your PATH.")
 
-    # force_dcm2bids = False
+    def clean_up():
+        try:
+            tmp_path = f"{bids_output_dir.as_posix()}/tmp_dcm2bids/sub-{subject}_ses-{session}"
+            shutil.rmtree(tmp_path)
+        except Exception as e:
+            print(e)
+            print(f"There was a problem deleting the temporary directory at {tmp_path}")
+                        
 
     if os.path.isdir(path_that_exists := f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}"):
         ans = prompt_user_continue(dedent(f"""
@@ -158,15 +165,9 @@ def run_dcm2bids(source_dir:Path,
 
     except RuntimeError or subprocess.CalledProcessError as e:
         print(e)
-        exit_program_early("Problem running 'dcm2bids'.")
+        exit_program_early("Problem running 'dcm2bids'.", clean_up)
+    clean_up()
 
-    # Clean up tmp_dcm2bids directory
-    try:
-        tmp_path = f"{bids_output_dir.as_posix()}/tmp_dcm2bids/sub-{subject}_ses-{session}"
-        shutil.rmtree(tmp_path)
-    except Exception as e:
-        print(e)
-        print(f"There was a problem deleting the temporary directory at {tmp_path}")
         
 
 def dicom_to_bids(subject:str, 
