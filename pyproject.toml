@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.10"
 sphinx-rtd-theme = "^2.0.0"
 flask = "^3.0.3"
+asttokens = "^2.4.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
