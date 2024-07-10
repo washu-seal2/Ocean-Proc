@@ -42,14 +42,14 @@ def _build_html_dict(option: str, action: str) -> dict:
     else:
         return {option: "INVALID", html_type: "INVALID"} # unimplemented option
 
-def generate_json_from_parser_options() -> list[dict]:
+def generate_json_from_parser_options(config_path: str = 'config.json') -> list[dict]:
     """
     Returns a list of Python dicts, which will be interpreted in JSON format by a React component for generating an HTML form corresponding to command-line arguments.
 
     :return: A Python dict containing two fields: 'option', the name of the argparse option, and 'html_type', a string containing the corresponding HTML <input> type field. 
     :rtype: list[dict]
     """
-    with open('config.json') as f:
+    with open(config_path) as f:
         config = json.load(f)
     options_script_path = config["options_script_path"]
     if not os.path.isfile(options_script_path):

@@ -60,7 +60,13 @@ def get_filesystem_json(subpath=""):
     return jsonify({'cur_dir': full_path.as_posix(),
                     'file_list': file_list}), 200
 
-    return jsonify({'ip': request.remote_addr}), 200
+
+@app.route('/api/get_parser_args/', methods=['GET'])
+def get_parser_args():
+    from .get_parser_json import generate_json_from_parser_options
+    parser_args = generate_json_from_parser_options()
+    return jsonify(parser_args), 200
+
 
 @app.route('/formtest/', methods=['GET'])
 def formtest():
