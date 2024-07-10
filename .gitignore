@@ -6,8 +6,6 @@ dist/
 ocean_proc.egg-info/
 build/
 _build/
-*.html
-*.js
 *.inv
 *.pickle
 *.pyc
