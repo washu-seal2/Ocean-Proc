@@ -60,8 +60,6 @@ def get_filesystem_json(subpath=""):
     return jsonify({'cur_dir': full_path.as_posix(),
                     'file_list': file_list}), 200
 
-@app.route('/api/get_ip/', methods=['GET'])
-def get_my_ip():
     return jsonify({'ip': request.remote_addr}), 200
 
 @app.route('/formtest/', methods=['GET'])
