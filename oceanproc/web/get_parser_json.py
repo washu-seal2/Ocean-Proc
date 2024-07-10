@@ -10,8 +10,8 @@ import subprocess
 import sys
 from textwrap import dedent
 
-def _find_add_argument_strings(path: str, parser_group_names: list[str]) -> list[str]:
-    calls_list = []
+def _create_argument_dicts(path: str, parser_group_names: list[dict]):
+    arguments = []
     with open(path) as f:
         script_ast = asttokens.ASTTokens(f.read(), parse=True)
         for node in ast.walk(script_ast.tree):
@@ -21,27 +21,15 @@ def _find_add_argument_strings(path: str, parser_group_names: list[str]) -> list
                 node.func.value.id in parser_group_names and
                 isinstance(node.func.attr, str) and
                 node.func.attr == 'add_argument'):
-                    calls_list.append(script_ast.get_text(node))
-    return calls_list
-     
-def _extract_action_from_arg_string(arg_string: str) -> str:
-    try: # Has a defined option
-        action = re.search(r'action=[\'\"]([\w\d_]+)[\'\"]', arg_string).group(1)
-        return action
-    except AttributeError: # Has the default option 'store'
-        return 'store'
-
-def _extract_optname_from_arg_string(arg_string: str) -> str:
-    optname = re.search(r'add_argument\([\"\']--([\w\d_]+)', arg_string).group(1)
-    return optname
-
-def _build_html_dict(option: str, action: str) -> dict:
-    if action == 'store':
-        return {"option": option, "html_type": "text"}
-    elif action == 'store_true':
-        return {"option": option, "html_type": "checkbox"}
-    else:
-        return {"option": "INVALID", "html_type": "INVALID"} # unimplemented option
+                    toklist = list(script_ast.get_tokens(node))
+                    # Grab the option name, should work for both positional and keyword args
+                    optname = [re.sub(r'\"--(.*)\"', r'\1', t.string) for t in toklist if 
+                               t.type == 3 and 
+                               ('--' in t.string or '-' not in t.string)][0]
+                    optsettings = {toklist[idx-1].string: re.sub(r'^[\'\"](.*)[\'\"]$', r'\1', toklist[idx+1].string) for idx in range(len(toklist))
+                                   if toklist[idx].string == "="}  
+                    arguments.append({optname: optsettings})
+    return arguments
 
 def generate_json_from_parser_options(config_path: str = 'config.json') -> list[dict]:
     """
@@ -56,9 +44,5 @@ def generate_json_from_parser_options(config_path: str = 'config.json') -> list[
     if not os.path.isfile(options_script_path):
         raise RuntimeError(f"ERROR: script at {options_script_path} does not exist.")
     parser_group_names = config["parser_group_names"]
-    add_argument_strings = _find_add_argument_strings(options_script_path, parser_group_names)
-    options_to_actions = {_extract_optname_from_arg_string(a): _extract_action_from_arg_string(a) for a in add_argument_strings}
-    html_dicts = [] 
-    for opt, act in options_to_actions.items():
-        html_dicts.append(_build_html_dict(opt, act))
-    return html_dicts
+    argument_dicts = _create_argument_dicts(options_script_path, parser_group_names)
+    return argument_dicts
