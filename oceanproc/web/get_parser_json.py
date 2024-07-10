@@ -1,4 +1,5 @@
 import ast
+import asttokens
 from html import escape
 import codecs
 import json
@@ -36,11 +37,11 @@ def _extract_optname_from_arg_string(arg_string: str) -> str:
 
 def _build_html_dict(option: str, action: str) -> dict:
     if action == 'store':
-        return {option: option, html_type: "text"}
+        return {"option": option, "html_type": "text"}
     elif action == 'store_true':
-        return {option: option, html_type: "checkbox"}
+        return {"option": option, "html_type": "checkbox"}
     else:
-        return {option: "INVALID", html_type: "INVALID"} # unimplemented option
+        return {"option": "INVALID", "html_type": "INVALID"} # unimplemented option
 
 def generate_json_from_parser_options(config_path: str = 'config.json') -> list[dict]:
     """
