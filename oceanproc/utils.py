@@ -1,7 +1,7 @@
 import sys
 
 
-def exit_program_early(msg:str, exit_func:function=None):
+def exit_program_early(msg:str, exit_func=None):
     """
     Exit the program while printing parameter 'msg'. If an exit
     function is sepcified, it will be called before the program
@@ -14,7 +14,8 @@ def exit_program_early(msg:str, exit_func:function=None):
 
     """
     print(f"---[ERROR]: {msg} \nExiting the program now...")
-    exit_func()
+    if exit_func:
+        exit_func()
     sys.exit(1)
 
 
