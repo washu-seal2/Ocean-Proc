@@ -1,11 +1,24 @@
 import { html } from 'htm/preact';
 import { render } from 'preact';
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useRef, useMemo } from 'preact/hooks';
 import { FileBrowser } from './FileBrowser.js'
+import { ArgparseFormEntry } from './ArgparseFormEntry.js'
 
 export function OceanprocForm(props) {
 	const [displayRestOfForm, setDisplayRestOfForm] = useState(false)
+	const [argparseArgObjects, setArgparseArgObjects] = useState(null)
 	const [bidsPath, setBidsPath] = useState("")
+	
+	useEffect(() => {
+		const xhr = new XMLHttpRequest();
+		xhr.open('GET', '/api/get_parser_args/')
+		xhr.onload = () => {
+			if (xhr.status === 200) {
+				setArgparseArgObjects(JSON.parse(xhr.responseText))
+			}
+		}
+		xhr.send()
+	}, [])
 
 	useEffect(() => {
 		if (bidsPath !== "") {
@@ -26,11 +39,16 @@ export function OceanprocForm(props) {
 			submitBtnText="Choose directory" 
 			browserTitle="Choose a BIDS directory (click on a directory name to go into it, check the radio button to select it)"
 			handleSubmit=${(curChosenDir) => setBidsPath(curChosenDir)}><//>
-		${displayRestOfForm ==- true  && (
-			html`
-					
-			`
-		)}
+			<form>
+				${displayRestOfForm && argparseArgObjects !== null && html`
+					${argparseArgObjects.map(obj => html`
+						<${ArgparseFormEntry} 
+						obj=${obj} 
+						formName="restOfForm"
+						ignoredOptNames=${["bids_path"]}><//>
+					`)}	
+				`}
+			</form>
 		</div>
 	`
 }

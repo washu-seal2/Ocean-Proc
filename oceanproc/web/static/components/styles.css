@@ -1,3 +1,15 @@
+.argparseFormTextInput {
+	display: flex;
+}
+
+.argparseFormTextInput > * {
+	margin: 10px 10px;
+} 
+
+.argparseFormTextInput > input {
+	max-width: 20rem;	
+}
+
 .fileEntryContainer {
 	display: flex; 
 	align-items: center;
