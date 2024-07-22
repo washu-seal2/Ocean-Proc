@@ -19,14 +19,14 @@ def _create_argument_dicts(path: str, parser_group_names: list[dict]):
         equalindices = [idx for idx in range(len(toklist)) if toklist[idx].string == "="]
         optsettingkeys = [toklist[idx-1].string for idx in equalindices]
         optsettingvals = []
-        for startidx in equalindices:
+        for startidx in equalindices: # Generate string representing value of kwarg, even if the value is longer than one token
             optsettingval = ""
             idx = startidx + 1
             while toklist[idx].string != "," and idx < len(toklist) - 1:
-                optsettingval += re.sub(r'^[\"\'](.*)[\"\']$', r'\1', toklist[idx].string)
+                optsettingval += re.sub(r'^[\"\'](.*)[\"\']$', r'\1', toklist[idx].string) # Remove outer quotes in string repr defined by ast
                 idx += 1
             optsettingvals.append(optsettingval)
-        option = {k: v for (k, v) in zip(optsettingkeys, optsettingvals)}
+        option = {optname: {k: v for (k, v) in zip(optsettingkeys, optsettingvals)}}
         return option
     arguments = []
     with open(path) as f:
