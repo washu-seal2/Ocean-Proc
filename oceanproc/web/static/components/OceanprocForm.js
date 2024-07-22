@@ -19,7 +19,6 @@ export function OceanprocForm(props) {
 		}
 		xhr.send()
 	}, [])
-
 	useEffect(() => {
 		if (bidsPath !== "") {
 			setDisplayRestOfForm(true)
