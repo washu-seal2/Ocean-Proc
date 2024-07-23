@@ -10,6 +10,7 @@ import nibabel as nib
 # from nilearn.plotting import plot_design_matrix
 # import matplotlib.pyplot as plt
 import nilearn.masking as nmask
+from nilearn.signal import clean
 import json
 from scipy import signal
 from ..oceanparse import OceanParser
@@ -21,7 +22,6 @@ TODO:
     * Find way to implement Volterra expansion for noise dataframe
 
 """
-
 
 def make_option(value, key=None, delimeter=" "):
     """
@@ -59,9 +59,11 @@ def make_option(value, key=None, delimeter=" "):
         return ""
     return f"--{key.replace('_', '-')}{second_part}" if key else second_part 
 
+
 def load_data(func_file: str, brain_mask: str = None) -> np.ndarray:
     tr = None
     sidecar_file = func_file.split(".")[0] + ".json"
+    assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
     with open(sidecar_file, "r") as f:
         jd = json.load(f)
         tr = jd["RepetitionTime"]
@@ -75,6 +77,12 @@ def load_data(func_file: str, brain_mask: str = None) -> np.ndarray:
             # raise Exception("Volumetric data must also have an accompanying brain mask")
             return None
         
+def create_image(data: npt.ArrayLike, brain_mask: str = None):
+    if brain_mask:
+        img = nmask.unmask(data, brain_mask)
+    else:
+        img = nib.cifti2.cifti2.Cifti2Image(data, )
+    return img
 
 def demean_detrend(func_data: npt.ArrayLike) -> np.ndarray:
     data_dd = signal.detrend(func_data, axis=0, type = 'linear')
@@ -394,7 +402,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.bp_filter != None:
-        if len(args.bp_filter) != 0 and len(args.bp_filter) != 2:
+        if len(args.bp_filter) == 0:
+            args.bp_filter = [0.1, 0.008]
+        elif len(args.bp_filter) != 0 and len(args.bp_filter) != 2:
             parser.error("Expecting 0 or 2 arguments for the '--bp_filter' option")
     
     if not args.bold_file_type == ".dtseries.nii" and (not args.brain_mask or not args.brain_mask.is_file()):
@@ -463,15 +473,12 @@ if __name__ == "__main__":
             "events": events_path
         })
 
-    for run_map in file_map_list:
-        func_data = load_data(run_map["bold"], args.brain_mask)
-        run_map["data"] = func_data
-        func_sidecar = run_map["bold"].with_suffix("").with_suffix(".json")
-        assert func_sidecar.is_file(), f"Cannot find the .json sidecar file for bold run: {run_map['bold']}"
+    func_data_list = []
+    design_df_list = []
+    noise_df_list = []
 
-        tr = None
-        with open(func_sidecar, "r") as f:
-            tr = float(json.load(f)["RepetitionTime"])
+    for run_map in file_map_list:
+        func_data, tr = load_data(run_map["bold"].as_posix(), args.brain_mask)
 
         events_df = events_to_design(   
             func_data=func_data,
@@ -490,5 +497,46 @@ if __name__ == "__main__":
             volterra_expansion=args.volterra_lag,
             volterra_columns=args.volterra_columns
         )
+
+        if args.nuisance_regression:
+            func_data_residuals = nuisance_regression(
+                func_data=func_data,
+                noise_matrix=noise_df,
+                fd_thresh=args.fd_thresh
+            )
+            run_map["data_resids"] = func_data_residuals
+            func_data = func_data_residuals
+
+        if args.bp_filter:
+            sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
+            sample_mask = sample_mask > args.fd_thresh
+            func_data_filtered = clean(
+                signals=func_data,
+                detrend=args.detrend_data,
+                sample_mask=sample_mask,
+                # confounds=noise_df,
+                filter="butterworth",
+                low_pass=args.bp_filter[0],
+                high_pass=args.bp_filter[1],
+                t_r=tr,
+            )
+            run_map["data_filtered"] = func_data_filtered
+            func_data = func_data_filtered
+
+        func_data_list.append(func_data)
+        design_df_list.append(events_df)
+        if not args.nuisance_regression:
+            noise_df_list.append(noise_df)
         
+
+    final_func_data, final_design_df = create_final_design(
+        data_list=func_data_list,
+        design_list=design_df_list,
+        noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None
+    )
         
+    activation_betas = massuni_linGLM(
+        func_data=final_func_data,
+        design_matrix=final_design_df
+    )
+
