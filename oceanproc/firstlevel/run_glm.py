@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 import os
 from glob import glob
@@ -14,6 +15,7 @@ from nilearn.signal import clean
 import json
 from scipy import signal
 from ..oceanparse import OceanParser
+
 
 """
 TODO: 
@@ -77,12 +79,36 @@ def load_data(func_file: str, brain_mask: str = None) -> np.ndarray:
             # raise Exception("Volumetric data must also have an accompanying brain mask")
             return None
         
-def create_image(data: npt.ArrayLike, brain_mask: str = None):
+
+def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None):
+    img = None
+    suffix = ".nii"
     if brain_mask:
         img = nmask.unmask(data, brain_mask)
     else:
-        img = nib.cifti2.cifti2.Cifti2Image(data, )
-    return img
+        ax0 = None
+        if data.shape[0] > 1 and tr:
+            ax0 = nib.cifti2.cifti2_axes.SeriesAxis(
+                start=0.0,
+                step=tr,
+                size=data.shape[0]
+            )
+            suffix = ".dtseries" + suffix
+        elif data.shape[0] == 1:
+            ax0 = nib.cifti2.cifti2_axes.ScalarAxis(
+                name=["beta"]
+            )
+            suffix = ".dscalar" + suffix
+        else:
+            raise RuntimeError("TR not supplied or data shape is incorrect")
+        ax1 = nib.cifti2.cifti2_axes.BrainModelAxis(
+            name=(['CIFTI_STRUCTURE_CORTEX_LEFT']*(data.shape[1]/2))+(['CIFTI_STRUCTURE_CORTEX_RIGHT']*(data.shape[1]/2)),
+            vertex=np.arange(data.shape[1]/2),
+            nvertices={'CIFTI_STRUCTURE_CORTEX_LEFT':data.shape[1]/2, 'CIFTI_STRUCTURE_CORTEX_RIGHT':data.shape[1]/2}
+        )
+        img = nib.cifti2.cifti2.Cifti2Image(data, (ax0, ax1))
+    return (img ,suffix)
+
 
 def demean_detrend(func_data: npt.ArrayLike) -> np.ndarray:
     data_dd = signal.detrend(func_data, axis=0, type = 'linear')
@@ -239,13 +265,13 @@ def events_to_design(func_data: npt.ArrayLike, tr: float, event_file: str, fir: 
                 # need to add to fill in time in between
 
     if fir:
-        col_names = {c:c+"_0" for c in conditions}
+        col_names = {c:c+"_00" for c in conditions}
         events_long = events_long.rename(columns=col_names)
         for c in conditions:
             for i in range(1, fir):
-                events_long.loc[:,f"{c}_{i}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
+                events_long.loc[:,f"{c}_{i:02d}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
                 # so events do not roll back around to the beginning
-                events_long.loc[:i,f"{c}_{i}"] = 0
+                events_long.loc[:i,f"{c}_{i:02d}"] = 0
         events_long = events_long.astype(int)
     elif assumed:
         cfeats = hrf_convolve_features(features=events_long, 
@@ -259,7 +285,7 @@ def events_to_design(func_data: npt.ArrayLike, tr: float, event_file: str, fir: 
     if design_file:
         events_long.to_csv(design_file)
     
-    return events_long
+    return (events_long, conditions)
 
 
 
@@ -338,18 +364,7 @@ def massuni_linGLM(func_data: npt.ArrayLike, design_matrix: pd.DataFrame):
 
 
 
-
-if __name__ == "__main__":
-    """
-    arguments:
-        task name 
-        func directory path
-        model type (assumed or FIR)
-        confounds columns 
-        filter parameters
-        volterra parameters
-        
-    """
+def main():
 
     parser = OceanParser(
         prog="oceanfla",
@@ -358,6 +373,10 @@ if __name__ == "__main__":
         epilog="An arguments file can be accepted with @FILEPATH"
     )
     
+    parser.add_argument("--subject", "-su",
+                        help="The subject ID")
+    parser.add_argument("--session", "-se",
+                        help="The session ID")
     parser.add_argument("--task", "-t", #required=True,
                         help="The name of the task to analyze.")
     parser.add_argument("--bold_file_type", "-ft", #required=True,
@@ -378,7 +397,7 @@ if __name__ == "__main__":
                              The first value is the time to the peak, and the second is the undershoot duration. Both in units of seconds.""")
     parser.add_argument("--confounds", "-c", nargs="+", #required=True,
                         help="A list of confounds to include from each confound timeseries tsv file.")
-    parser.add_argument("--fd_threshold", "-fd", type=int, 
+    parser.add_argument("--fd_threshold", "-fd", type=float, 
                         help="The framewise displacement threshold used when censoring high-motion frames")
     parser.add_argument("--detrend_data", "-dd", action="store_true", 
                         help="""Flag to demean and detrend the data before modeling. The default is to include
@@ -396,7 +415,7 @@ if __name__ == "__main__":
                         the default of 2 will be used. Must be specifed with the '--volterra_columns' option.""")
     parser.add_argument("--volterra_columns", "-vc", nargs="+",
                         help="The confound columns to include in the expansion. Must be specifed with the '--volterra_lag' option.")
-    parser.add_argument("--export_args", "-ea", action="store_true", 
+    parser.add_argument("--export_args", "-ea", 
                         help="Path to a file to save the current arguments.")
     
     args = parser.parse_args()
@@ -407,8 +426,10 @@ if __name__ == "__main__":
         elif len(args.bp_filter) != 0 and len(args.bp_filter) != 2:
             parser.error("Expecting 0 or 2 arguments for the '--bp_filter' option")
     
-    if not args.bold_file_type == ".dtseries.nii" and (not args.brain_mask or not args.brain_mask.is_file()):
-        parser.error("If the bold file type is volumetric data a valid '--brain_mask' option must also be supplied")
+    if args.bold_file_type[0] != ".":
+        args.bold_file_type = "." + args.bold_file_type
+    if (args.bold_file_type == ".nii" or args.bold_file_type == ".nii.gz") and (not args.brain_mask or not args.brain_mask.is_file()):
+        parser.error("If the bold file type is volumetric data, a valid '--brain_mask' option must also be supplied")
 
     if (args.volterra_lag != None and args.volterra_columns == None) or (args.volterra_lag == None and args.volterra_columns != None):
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
@@ -422,9 +443,12 @@ if __name__ == "__main__":
         opts_to_save = dict()
         for group in parser._action_groups:
             for a in group._group_actions:
-                if all_opts[a.dest]:
+                if a.dest in all_opts and all_opts[a.dest]:
                     if type(all_opts[a.dest]) == bool:
                         opts_to_save[a.option_strings[0]] = ""
+                        continue
+                    elif isinstance(all_opts[a.dest], Path):
+                        opts_to_save[a.option_strings[0]] = all_opts[a.dest].as_posix()
                         continue
                     opts_to_save[a.option_strings[0]] = all_opts[a.dest]
         with open(args.export_args, "w") as f:
@@ -433,7 +457,6 @@ if __name__ == "__main__":
             else:
                 for k,v in opts_to_save.items():
                     f.write(f"{k}{make_option(value=v)}\n")
-
 
 
     # Find all of the functional runs for given task
@@ -453,13 +476,14 @@ if __name__ == "__main__":
     assert args.derivs_dir.is_dir(), "Derivatives directory must exist"
     assert args.raw_bids.is_dir(), "Raw data directory must exist"
 
-    bold_files = sorted(args.derivs_dir.glob(f"**/*_task-{args.task}*bold.{args.bold_file_type}"))
+    bold_files = sorted(args.derivs_dir.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold*{args.bold_file_type}"))
     assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
 
     file_map_list = []
 
     for bold_path in bold_files:
         bold_base = bold_path.name.split("_space")[0]
+        bold_base = bold_base.split("_desc")[0]
         # confound_name = bold_base + "_desc-confounds_timeseries.tsv"
         confound_path = bold_path.parent / f"{bold_base}_desc-confounds_timeseries.tsv"
         assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)}"
@@ -473,20 +497,24 @@ if __name__ == "__main__":
             "events": events_path
         })
 
+    tr = None
+    trial_types = set()
     func_data_list = []
     design_df_list = []
     noise_df_list = []
-
+    breakpoint()
     for run_map in file_map_list:
         func_data, tr = load_data(run_map["bold"].as_posix(), args.brain_mask)
 
-        events_df = events_to_design(   
+        events_df, run_conditions = events_to_design(   
             func_data=func_data,
             tr=tr,
             event_file=run_map["events"],
             fir=args.fir_frams if args.fir_frames else None,
             assumed=args.hrf if args.hrf else None,
         )
+
+        trial_types.update(run_conditions)
 
         noise_df = make_noise_ts(
             confounds_file=run_map["confounds"],
@@ -506,6 +534,8 @@ if __name__ == "__main__":
             )
             run_map["data_resids"] = func_data_residuals
             func_data = func_data_residuals
+        else:
+            noise_df_list.append(noise_df)
 
         if args.bp_filter:
             sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
@@ -522,11 +552,15 @@ if __name__ == "__main__":
             )
             run_map["data_filtered"] = func_data_filtered
             func_data = func_data_filtered
+        elif args.detrend_data:
+            func_data_detrend = demean_detrend(
+                func_data=func_data
+            )
+            run_map["data_detrend"] = func_data_detrend
+            func_data = func_data_detrend
 
         func_data_list.append(func_data)
         design_df_list.append(events_df)
-        if not args.nuisance_regression:
-            noise_df_list.append(noise_df)
         
 
     final_func_data, final_design_df = create_final_design(
@@ -534,9 +568,52 @@ if __name__ == "__main__":
         design_list=design_df_list,
         noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None
     )
-        
+    
+    breakpoint()
+
     activation_betas = massuni_linGLM(
         func_data=final_func_data,
         design_matrix=final_design_df
     )
+
+    model_type = "FIR" if args.fir_frames else "HRF"
+
+    for i, c in enumerate(final_design_df.columns):
+
+        if args.fir_frames and c[:-3] in trial_types:
+            continue
+            # if c[:-3] in fir_concat:
+            #     trial = c[:-3]
+            #     fir_concat[trial].append()
+
+        beta_img, img_suffix = create_image(
+            data=np.expand_dims(activation_betas[i,:], axis=0),
+            brain_mask=args.brain_mask,
+            tr=tr
+        )
+       
+        nib.save(
+            beta_img,
+            f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+        )
+
+    if args.fir_frames:
+        for condition in trial_types:
+            beta_frames = np.zeros(shape=(args.fir_frames, activation_betas.shape[1]))
+            for f in range(args.fir_frames):
+                beta_frames[f,:] = activation_betas[f"{condition}_{f:02d}",:]
+            beta_img, img_suffix = create_image(
+                data=beta_frames,
+                brain_mask=args.brain_mask,
+                tr=tr
+            )
+            nib.save(
+                beta_img,
+                f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+            )
+    
+
+if __name__ == "__main__":
+    main()
+    
 
