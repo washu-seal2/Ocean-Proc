@@ -59,14 +59,14 @@ class OceanParser(argparse.ArgumentParser):
                                 file_arg_strings.append(k)
                                 if isinstance(v, list):
                                     for val in v:
-                                        file_arg_strings.append(val)
+                                        file_arg_strings.append(str(val))
                                 elif isinstance(v, str):
                                     if not v or not v.strip():
                                         continue
                                     else:
                                         file_arg_strings.append(v)
                                 else:
-                                    file_arg_strings.append(v)
+                                    file_arg_strings.append(str(v))
                         else:
                             for arg_line in args_file.read().splitlines():
                                 for arg in self.convert_arg_line_to_args(arg_line):

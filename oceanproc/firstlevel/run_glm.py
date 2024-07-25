@@ -62,15 +62,16 @@ def make_option(value, key=None, delimeter=" "):
     return f"--{key.replace('_', '-')}{second_part}" if key else second_part 
 
 
-def load_data(func_file: str, brain_mask: str = None) -> np.ndarray:
+def load_data(func_file: str, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
     tr = None
-    sidecar_file = func_file.split(".")[0] + ".json"
-    assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
-    with open(sidecar_file, "r") as f:
-        jd = json.load(f)
-        tr = jd["RepetitionTime"]
+    if need_tr:
+        sidecar_file = func_file.split(".")[0] + ".json"
+        assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
+        with open(sidecar_file, "r") as f:
+            jd = json.load(f)
+            tr = jd["RepetitionTime"]
 
-    if func_file.endswith(".dtseries.nii"):
+    if func_file.endswith(".dtseries.nii") or func_file.endswith(".dscalar.nii"):
         return (nib.load(func_file).get_fdata(), tr)
     elif func_file.endswith(".nii") or func_file.endswith(".nii.gz"):
         if brain_mask:
@@ -220,8 +221,9 @@ def make_noise_ts(confounds_file: str,
                   ):
     fd = "framewise_displacement"
     select_columns = set(confound_columns)
-    select_columns.update(volterra_columns)
-    nuisance = pd.read_csv(confounds_file, delimiter='\t').loc[:,select_columns]
+    if volterra_columns:
+        select_columns.update(volterra_columns)
+    nuisance = pd.read_csv(confounds_file, delimiter='\t').loc[:,list(select_columns)]
     if fd in select_columns:
         nuisance.loc[0, fd] = 0
 
@@ -347,7 +349,7 @@ def create_final_design(data_list: list[npt.ArrayLike], design_list: list[pd.Dat
             design_list[i] = pd.concat([design_list[i], noise_df], axis=1)
 
     final_design = pd.concat(design_list, axis=0, ignore_index=True)
-    final_data = np.vstack(data_list)
+    final_data = np.concat(data_list, axis=0)
     return (final_data, final_design)
 
 
@@ -399,6 +401,8 @@ def main():
                         help="A list of confounds to include from each confound timeseries tsv file.")
     parser.add_argument("--fd_threshold", "-fd", type=float, 
                         help="The framewise displacement threshold used when censoring high-motion frames")
+    parser.add_argument("--repetition_time", "-tr", type=float,
+                        help="Repetition time of the function runs. If it is not supplied, an attempt will be made to read it from the JSON sidecar file.")
     parser.add_argument("--detrend_data", "-dd", action="store_true", 
                         help="""Flag to demean and detrend the data before modeling. The default is to include
                         a mean and trend line into the nuisance matrix instead.""")
@@ -435,7 +439,6 @@ def main():
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
 
 
-    breakpoint()
     ##### Export the current arguments to a file #####
     if args.export_args:
         print(f"####### Exporting Arguments to: '{args.export_args}' #######")
@@ -458,38 +461,24 @@ def main():
                 for k,v in opts_to_save.items():
                     f.write(f"{k}{make_option(value=v)}\n")
 
-
-    # Find all of the functional runs for given task
-    # Find all of the confounds files for the given task
-    # Find all of the event files of the given task
-
-    # For each functional run
-    ## Load in the functional data
-    ## Create the design matrix
-    ## Create the noise matrix
-    ## Nuisance regression -- optional
-    ## Bandpass filtering -- optional
-
-    # Combine design matrices (and noise matrices if no nuisance regression was performed)
-    # Run GLM
-
     assert args.derivs_dir.is_dir(), "Derivatives directory must exist"
     assert args.raw_bids.is_dir(), "Raw data directory must exist"
 
     bold_files = sorted(args.derivs_dir.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold*{args.bold_file_type}"))
     assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
 
-    file_map_list = []
+    model_type = "FIR" if args.fir_frames else "HRF"
 
+    file_map_list = []
     for bold_path in bold_files:
         bold_base = bold_path.name.split("_space")[0]
         bold_base = bold_base.split("_desc")[0]
         # confound_name = bold_base + "_desc-confounds_timeseries.tsv"
         confound_path = bold_path.parent / f"{bold_base}_desc-confounds_timeseries.tsv"
-        assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)}"
+        assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)} seach path {confound_path.as_posix()}"
         event_search_path = f"{bold_base}*_events.tsv"
-        event_files = args.raw_bids.glob(event_search_path)
-        assert len(event_files) == 1, f"Found more or less than one event file for bold run: {str(bold_path)}"
+        event_files = list(args.raw_bids.glob("**/" + event_search_path))
+        assert len(event_files) == 1, f"Found more or less than one event file for bold run: {str(bold_path)} search path {event_search_path} len: {len(event_files)}"
         events_path = event_files[0]
         file_map_list.append({
             "bold": bold_path,
@@ -497,28 +486,33 @@ def main():
             "events": events_path
         })
 
-    tr = None
+    tr = args.repetition_time if args.repetition_time else None
     trial_types = set()
     func_data_list = []
     design_df_list = []
     noise_df_list = []
-    breakpoint()
-    for run_map in file_map_list:
-        func_data, tr = load_data(run_map["bold"].as_posix(), args.brain_mask)
+
+    for i, run_map in enumerate(file_map_list):
+        print(run_map["bold"])
+
+        func_data, read_tr = load_data(
+            func_file=run_map["bold"].as_posix(), 
+            brain_mask=args.brain_mask,
+            need_tr=(not tr)
+        )
+        tr = tr if tr else read_tr
 
         events_df, run_conditions = events_to_design(   
             func_data=func_data,
             tr=tr,
             event_file=run_map["events"],
-            fir=args.fir_frams if args.fir_frames else None,
+            fir=args.fir_frames if args.fir_frames else None,
             assumed=args.hrf if args.hrf else None,
         )
 
-        trial_types.update(run_conditions)
-
         noise_df = make_noise_ts(
             confounds_file=run_map["confounds"],
-            confound_columns=args.confound_columns,
+            confound_columns=args.confounds,
             demean=(not args.detrend_data), 
             linear_trend=(not args.detrend_data),
             spike_threshold=args.fd_threshold if args.spike_censoring else None,
@@ -530,16 +524,27 @@ def main():
             func_data_residuals = nuisance_regression(
                 func_data=func_data,
                 noise_matrix=noise_df,
-                fd_thresh=args.fd_thresh
+                fd_thresh=args.fd_threshold
             )
             run_map["data_resids"] = func_data_residuals
             func_data = func_data_residuals
         else:
             noise_df_list.append(noise_df)
 
+        # nrimg, img_suffix = create_image(
+        #     data=func_data,
+        #     brain_mask=args.brain_mask,
+        #     tr=tr
+        # )
+        # nib.save(
+        #     nrimg,
+        #     f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_run-{i}_desc-nuisance-regress{img_suffix}"
+        # )
+
         if args.bp_filter:
             sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
-            sample_mask = sample_mask > args.fd_thresh
+            sample_mask = sample_mask < args.fd_threshold
+            events_df = events_df.loc[sample_mask, :]
             func_data_filtered = clean(
                 signals=func_data,
                 detrend=args.detrend_data,
@@ -559,6 +564,20 @@ def main():
             run_map["data_detrend"] = func_data_detrend
             func_data = func_data_detrend
 
+        # bpimg, img_suffix = create_image(
+        #     data=func_data,
+        #     brain_mask=args.brain_mask,
+        #     tr=tr
+        # )
+        # nib.save(
+        #     bpimg,
+        #     f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_run-{i}_desc-bpfilter{img_suffix}"
+        # )
+        
+        # events_df.to_csv(f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_run-{i}_desc-design.csv")
+
+        trial_types.update(run_conditions)
+
         func_data_list.append(func_data)
         design_df_list.append(events_df)
         
@@ -568,40 +587,32 @@ def main():
         design_list=design_df_list,
         noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None
     )
-    
-    breakpoint()
+    final_design_df.to_csv(f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}-final-design.csv")
 
     activation_betas = massuni_linGLM(
         func_data=final_func_data,
         design_matrix=final_design_df
     )
 
-    model_type = "FIR" if args.fir_frames else "HRF"
-
     for i, c in enumerate(final_design_df.columns):
-
         if args.fir_frames and c[:-3] in trial_types:
             continue
-            # if c[:-3] in fir_concat:
-            #     trial = c[:-3]
-            #     fir_concat[trial].append()
-
         beta_img, img_suffix = create_image(
             data=np.expand_dims(activation_betas[i,:], axis=0),
             brain_mask=args.brain_mask,
             tr=tr
         )
-       
         nib.save(
             beta_img,
-            f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+            f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
         )
 
     if args.fir_frames:
         for condition in trial_types:
             beta_frames = np.zeros(shape=(args.fir_frames, activation_betas.shape[1]))
             for f in range(args.fir_frames):
-                beta_frames[f,:] = activation_betas[f"{condition}_{f:02d}",:]
+                beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
+                beta_frames[f,:] = activation_betas[beta_column,:]
             beta_img, img_suffix = create_image(
                 data=beta_frames,
                 brain_mask=args.brain_mask,
@@ -609,7 +620,7 @@ def main():
             )
             nib.save(
                 beta_img,
-                f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+                f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{condition}{img_suffix}"
             )
     
 
