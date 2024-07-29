@@ -67,10 +67,16 @@ Here's a small breakdown of what these folders mean, from top to bottom:
 
     rm -rf tmp_dcm2bids
 
+You'll also want to create a directory on the same level as ``derivatives``, ``sourcedata``, etc. named ``rawdata``, which can be done like so::
+
+    mkdir rawdata
+
+This directory is for storing your raw data after it's been put into BIDS format.
+
 Set up the ``sourcedata`` directory
 -----------------------------------
 
-The structure of this directory does not matter, as it is only for storing raw data in non-BIDS format, which presumably will contain some PHI (and will not be shared). In both cases, move the top-level directory (detailed in the examples below) into the ``sourcedata`` directory, under any name you'll be able to remember.
+The structure of this directory does not matter, as it is only for storing raw data in non-BIDS format. In both cases, move the top-level directory (detailed in the examples below) into the ``sourcedata`` directory, under any name you'll be able to remember.
 
 DICOM
 ^^^^^
@@ -112,13 +118,17 @@ For NIFTI raw data, just keep all of the .nii (or .nii.gz) and .json files in th
 Building your dcm2bids config file
 ----------------------------------
 
-A full detailed guide to building ``dcm2bids`` config files can be found `here <https://unfmontreal.github.io/Dcm2Bids/3.1.1/tutorial/first-steps/#how-to-use-this-tutorial>`_. 
+A more detailed guide to building ``dcm2bids`` config files can be found `here <https://unfmontreal.github.io/Dcm2Bids/3.2.0/how-to/create-config-file/>`_. 
 
-This config is needed to determine how to name each series run, and where within the final BIDS hierarchy it will live. This naming convention can be determined by a number of factors, all of which are derived from the .json "sidecar" file containing metadata for the scan. 
+The dcm2bids config file is kept in the ``code`` directory at the top level of your BIDS directory, and is typically named something like ``dcm2bids_config.json``. This config is needed to determine how each raw data file will be named, and where they will reside in the BIDS hierarchy. This naming convention can be determined by a number of factors, all of which are derived from the .json "sidecar" file containing metadata for the scan. 
 
-If your raw data is in the ``sourcedata`` directory and in DICOM format, the command ``dcm2bids_helper`` can generate a list of these sidecar files with the metadata needed to make the config; if it's already in NIFTI format, you can look through each of these files to get the identifying info that you'll need. 
+If your raw data is in the ``sourcedata`` directory and in DICOM format, the command ``dcm2bids_helper`` can generate a list of these sidecar files with the metadata needed to make the config. To run this, simply navigate to the directory containing all of the folders with DICOM files (they should be named `1`, `2`, ... `99`), and run::
+    
+    dcm2bids_helper
 
-Here's a brief example of what a mapping of fieldmaps into BIDS format would look like in a config file::
+from the command line. If your data is already in NIFTI format, you can look through each of these files to get the identifying info that you'll need. 
+
+Here's a brief example of what a mapping of fieldmap files into BIDS format would look like in a config file::
 
     {
         "descriptions": [
@@ -146,13 +156,23 @@ Here's a brief example of what a mapping of fieldmaps into BIDS format would loo
 Let's break down what these items mean.
 
 * ``"descriptions"``: This top-level field in the .json file will contain a list of mappings from raw NIFTI format into BIDS format.
-* ``"datatype"``: This is a mandatory field, and describes under which subfolder below the session level this series will be contained in. The BIDS v1.2.0 specification defines the following six:
-    * ``"anat"`` 
-    * ``"beh"``
-    * ``"dwi"``
-    * ``"fmap"``
-    * ``"func"``
-    * ``"meg"``
+    * ``"datatype"``: This is a mandatory field, and describes under which subfolder below the session level this series will be contained in. The BIDS v1.2.0 specification defines the following six:
+        * ``"anat"``: specified for anatomical images 
+        * ``"beh"``: specified for behavioral data
+        * ``"dwi"``: specified for diffusion-weighted imaging
+        * ``"fmap"``: specified for fieldmaps
+        * ``"func"``: specified for BOLD functional data
+        * ``"meg"``: specified for magnetoencephalography (MEG)
+    * ``"custom_entities"``: This field allows for adding additional information in the BIDS-compliant file name. In the above example, "dir-AP" or "dir-PA" will be added to the fieldmap names to specify which direction they were collected in (anterior -> posterior, or posterior -> anterior)
+    * ``"criteria"``: This field allows for only choosing files that include every specified key-value pair in their JSON sidecar file. In the above examples, dcm2bids will only convert fieldmap files into NIFTI format if their "SeriesDescription" value matches either "SpinEchoFieldMap_AP_2p4mm" or "SpinEchoFieldMap_PA_2p4mm", and whose "ImageTypeText" field matches the list of specified image types.
+
+There are many other configuration options available when building your config file; refer to the link at the top of this section for more details.
+
+Running oceanproc
+-----------------
+
+
+
 
 
 
