@@ -169,7 +169,7 @@ def main():
                         help="The path to the dcm2bids config file to use for this subject and session")
     config_arguments.add_argument("--nordic_config", "-n", 
                         help="The path to the second dcm2bids config file to use for this subject and session. This implies that the session contains NORDIC data")
-    config_arguments.add_argument("--nifti", action="store_true",
+    config_arguments.add_argument("--nifti", action=argparse.BooleanOptionalAction,
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
     config_arguments.add_argument("--fd_spike_threshold", "-fd", type=float, default=0.9,
                         help="framewise displacement threshold (in mm) to determine outlier framee (Default is 0.9).")
