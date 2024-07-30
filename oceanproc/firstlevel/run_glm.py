@@ -452,7 +452,7 @@ def main():
                     opts_to_save[a.option_strings[0]] = all_opts[a.dest]
         with open(args.export_args, "w") as f:
             if args.export_args.endswith(".json"):
-                f.write(json.dumps(opts_to_save))
+                f.write(json.dumps(opts_to_save, indent=4))
             else:
                 for k,v in opts_to_save.items():
                     f.write(f"{k}{make_option(value=v)}\n")
