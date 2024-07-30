@@ -14,14 +14,17 @@ import nilearn.masking as nmask
 from nilearn.signal import clean
 import json
 from scipy import signal
+from scipy.stats import gamma
 from ..oceanparse import OceanParser
 
 
 """
 TODO: 
     * Find good way to pass hrf peak and undershoot variables
-    * Consult on solid way to implement band pass filtering
-    * Find way to implement Volterra expansion for noise dataframe
+    * Save final noise df for each run
+    * Debug Mode - save intermediate outputs
+    * Options for highpass and lowpass filters
+    * Function documentation and testing
 
 """
 
@@ -134,8 +137,6 @@ def hrf(time, time_to_peak=5, undershoot_dur=12):
     hrf_timeseries: numpy array
         The y-values for the HRF at each time point
     """
-
-    from scipy.stats import gamma
 
     peak = gamma.pdf(time, time_to_peak)
     undershoot = gamma.pdf(time, undershoot_dur)
@@ -307,11 +308,6 @@ def bandpass_filter(func_data: npt.ArrayLike,
     filtered_data = signal.filtfilt(b=b, a=a, x=func_data, axis=0)
     
     return filtered_data
-
-"""
-SPECTRAL INTERPOLATION FOR MOTION SPIKE FRAMES
-"""
-
 
 
 """
