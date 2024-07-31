@@ -127,9 +127,7 @@ def run_fmri_prep(subject:str,
     clean_up()
     
 
-
-
-def main():
+def get_parser():
     parser = OceanParser(
             prog="oceanproc", 
             description="Ocean Labs adult MRI preprocessing",
@@ -185,7 +183,12 @@ def main():
                         help="The path to the working directory used to store intermediate files")
     config_arguments.add_argument("--fs_license", "-l", required=True,
                         help="The path to the license file for the local installation of FreeSurfer")
+    return parser, config_arguments
     
+
+
+def main():
+    parser, config_arguments = get_parser()
     args = parser.parse_args()
 
     args.work_dir = make_work_directory(args.work_dir, args.subject, args.session)
