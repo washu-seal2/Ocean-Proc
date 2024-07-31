@@ -11,6 +11,7 @@ Welcome to oceanproc's documentation!
    :caption: Contents:
     
    Quickstart guide <quickstart>
+   Advanced usage tips <advanced>
    Command line options <usage>
    API reference <modules>
 
