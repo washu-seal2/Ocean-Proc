@@ -171,6 +171,8 @@ def main():
                         help="The path to the second dcm2bids config file to use for this subject and session. This implies that the session contains NORDIC data")
     config_arguments.add_argument("--nifti", action=argparse.BooleanOptionalAction,
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
+    config_arguments.add_argument("--anat_only", action='store_true',
+                        help="Flag to specify only anatomical images should be processed.")
     config_arguments.add_argument("--fd_spike_threshold", "-fd", type=float, default=0.9,
                         help="framewise displacement threshold (in mm) to determine outlier framee (Default is 0.9).")
     config_arguments.add_argument("--skip_bids_validation", action="store_true",
@@ -224,7 +226,7 @@ def main():
     ##### Pair field maps to functional runs #####
     bids_session_dir = f"{args.bids_path}/sub-{args.subject}/ses-{args.session}"
 
-    if not args.skip_fmap_pairing:
+    if not args.anat_only and not args.skip_fmap_pairing:
         map_fmap_to_func(
             xml_path=args.xml_path, 
             bids_dir_path=bids_session_dir
@@ -234,7 +236,7 @@ def main():
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
 
-    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation", "fd_spike_threshold"}
+    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation", "fd_spike_threshold", "anat_only"}
     fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo], "=") for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
