@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 
+# TODO
+
+# Change the entrypoint to run a version of oceanproc that's NOT the wrapper
+
 # set environment vars
 FROM nipreps/fmriprep:latest
 ENV OCEANPROC_ROOT=/opt/oceanproc

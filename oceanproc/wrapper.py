@@ -1,6 +1,11 @@
 import subprocess
 from .oceanparse import OceanParser
 
+#TODO:
+
+# Parse each argument and expand them to fit with a call to "docker run"
+# Verify the oceanproc image is installed
+
 def check_docker():
     """Verify that docker is installed and the user has permission to
     run docker images.
