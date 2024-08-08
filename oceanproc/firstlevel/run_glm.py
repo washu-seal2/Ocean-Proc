@@ -19,7 +19,7 @@ from scipy.stats import gamma
 from ..oceanparse import OceanParser
 import logging
 import datetime
-
+from textwrap import dedent
 
 """
 TODO: 
@@ -254,11 +254,20 @@ def make_noise_ts(confounds_file: str,
     return nuisance
 
 
-def events_to_design(func_data: npt.ArrayLike, tr: float, event_file: str, fir: int = None, assumed: list[int] = None, design_file: str = None):
+def events_to_design(func_data: npt.ArrayLike, 
+                     tr: float, 
+                     event_file: str, 
+                     fir: int = None, 
+                     hrf: tuple[int] = None, 
+                     fir_list: list[str] = None,  
+                     hrf_list: list[str] = None,
+                     design_file: str = None,
+                     logger = None):
     duration = tr * func_data.shape[0]
     events_df = pd.read_csv(event_file, index_col=None, delimiter='\t')
     conditions = [s for s in np.unique(events_df.trial_type)]
     events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0, duration, tr))
+    residual_conditions = conditions
 
     for e in events_df.index:
         i = find_nearest(events_long.index, events_df.loc[e,'onset'])
@@ -268,26 +277,38 @@ def events_to_design(func_data: npt.ArrayLike, tr: float, event_file: str, fir: 
             j = find_nearest(events_long.index, offset)
             events_long.loc[i:j, events_df.loc[e,'trial_type']] = 1
 
-    if fir and assumed:
-        pass
-    elif fir:
-        col_names = {c:c+"_00" for c in conditions}
+    if fir:
+        fir_conditions = residual_conditions
+        if fir_list and len(fir_list) > 0:
+            fir_conditions = [c for c in residual_conditions if c in fir_list]
+        residual_conditions = [c for c in residual_conditions if c not in fir_conditions]
+        
+        col_names = {c:c+"_00" for c in fir_conditions}
         events_long = events_long.rename(columns=col_names)
-        for c in conditions:
+        for c in fir_conditions:
             for i in range(1, fir):
                 events_long.loc[:,f"{c}_{i:02d}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
                 # so events do not roll back around to the beginning
                 events_long.loc[:i,f"{c}_{i:02d}"] = 0
         events_long = events_long.astype(int)
-    elif assumed:
+    if hrf:
+        hrf_conditions = residual_conditions
+        if hrf_list and len(hrf_list) > 0:
+            hrf_conditions = [c for c in residual_conditions if c in hrf_list]
+        residual_conditions = [c for c in residual_conditions if c not in hrf_conditions]
+        
         cfeats = hrf_convolve_features(features=events_long, 
-                                       column_names=conditions,
-                                       time_to_peak=assumed[0],
-                                       undershoot_dur=assumed[1])
-        for c in conditions:
+                                       column_names=hrf_conditions,
+                                       time_to_peak=hrf[0],
+                                       undershoot_dur=hrf[1])
+        for c in hrf_conditions:
             events_long[c] = cfeats[c]
-        pass
     
+    if len(residual_conditions) > 0 and logger:
+        logger.warning(dedent(f"""The following trial types were not selected under either of the specified models
+                           and will not be included in the design matrix: {residual_conditions}"""))
+        events_long = events_long.drop(columns=residual_conditions)
+
     if design_file:
         events_long.to_csv(design_file)
     
@@ -434,16 +455,18 @@ def main():
     hrf_parser = subparsers.add_parser("hrf", help="Specify the hemodynamic response function model parameters and the variables to apply the model to (if not all).")
     hrf_parser.add_argument("--peak_time", "-pt", type=int, default=5,
                             help="The time to the peak of the hrf to model (in seconds).")
-    hrf_parser.add_argument("--undershoot_time", "-ut", type=int, default=10,
+    hrf_parser.add_argument("--undershoot_dur", "-ut", type=int, default=10,
                             help="The duration of the undershoot of the hrf to model (in seconds).")
-    hrf_parser.add_argument("--hrf_vars", action="extend", nargs="+", default="all",
-                            help="A list of the variables (regressors) to apply this HRF model to.")
+    hrf_parser.add_argument("--hrf_vars", nargs="+", default="all",
+                            help="""A list of the task regressors to apply this HRF model to. The default is to apply it to all regressors. 
+                            A list must be specified if both types of models are being used""")
 
     fir_parser = subparsers.add_parser("fir", help="Specify the finite impluse response model parameters and the variables to apply the model to (if not all).")
     fir_parser.add_argument("--num_frames", "-nf", type=int, default=20,
                             help="The number of frames to include in the FIR model for each variable it applies to.")
-    fir_parser.add_argument("--fir_vars", action="extend", nargs="+", default="all",
-                            help="A list of the variables (regressors) to apply this FIR model to.")
+    fir_parser.add_argument("--fir_vars", nargs="+", default="all",
+                            help="""A list of the task regressors to apply this FIR model to. The default is to apply it to all regressors. 
+                            A list must be specified if both types of models are being used""")
     
     num_subparsers = 2
     # parse the arguments of the main parser and each model subparser
@@ -455,7 +478,10 @@ def main():
     if len(residual) != 0:
         parser.error(f"unrecognized arguments: {" ".join(residual)}")
 
-
+    if hasattr(args, "fir_vars") and hasattr(args, "hrf_vars"):
+        if args.fir_vars == "all" or args.hrf_vars == "all":
+            parser.error("Must specify variables to apply each model to if using both types of models")
+        
     if args.bp_filter != None:
         if len(args.bp_filter) == 0:
             args.bp_filter = [0.1, 0.008]
@@ -508,7 +534,13 @@ def main():
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f"{k} : {v}")
 
-    model_type = "FIR" if args.fir_frames else "HRF"
+    hrf_model = (args.peak_time, args.undershoot_dur) if hasattr(args, "peak_time") else None
+    hrf_vars = args.hrf_vars if hasattr(args, "hrf_vars") and args.hrf_vars != "all" else None
+
+    fir_model = args.num_frames if hasattr(args, "num_frames") else None
+    fir_vars = args.fir_vars if hasattr(args, "fir_vars") and args.fir_vars != "all" else None
+
+    model_type = "MixedModel" if fir_model and hrf_model else "FIR" if fir_model else "HRF" 
     file_map_list = []
 
     try: 
@@ -564,8 +596,12 @@ def main():
             func_data=func_data,
             tr=tr,
             event_file=run_map["events"],
-            fir=args.fir_frames if args.fir_frames else None,
-            assumed=args.hrf if args.hrf else None,
+            fir=fir_model,
+            fir_list=fir_vars,
+            hrf=hrf_model,
+            hrf_list=hrf_vars,
+            logger=logger,
+            design_file=f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
         )
 
         logger.info(" reading confounds file and creating nuisance matrix")
@@ -676,8 +712,10 @@ def main():
     )
 
     logger.info("saving betas from GLM into files")
+    fir_betas_to_combine = set()
     for i, c in enumerate(final_design_df.columns):
-        if args.fir_frames and c[:-3] in trial_types:
+        if fir_model and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
+            fir_betas_to_combine.add(c[:-3])
             continue
         beta_img, img_suffix = create_image(
             data=np.expand_dims(activation_betas[i,:], axis=0),
@@ -691,10 +729,10 @@ def main():
             beta_filename
         )
 
-    if args.fir_frames:
-        for condition in trial_types:
-            beta_frames = np.zeros(shape=(args.fir_frames, activation_betas.shape[1]))
-            for f in range(args.fir_frames):
+    if fir_model:
+        for condition in fir_betas_to_combine:
+            beta_frames = np.zeros(shape=(fir_model, activation_betas.shape[1]))
+            for f in range(fir_model):
                 beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
                 beta_frames[f,:] = activation_betas[beta_column,:]
             beta_img, img_suffix = create_image(
@@ -703,11 +741,12 @@ def main():
                 tr=tr
             )
             beta_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{condition}{img_suffix}"
-            logger.info(f" saving betas for variable {condition} (all {args.fir_frames} modeled frames) to file: {beta_filename}")
+            logger.info(f" saving betas for variable {condition} (all {fir_model} modeled frames) to file: {beta_filename}")
             nib.save(
                 beta_img,
                 beta_filename
             )
+
     logger.info("oceanfla complete!")
 
 if __name__ == "__main__":
