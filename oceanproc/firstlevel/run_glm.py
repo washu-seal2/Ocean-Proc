@@ -477,7 +477,7 @@ def main():
         if len(residual) == 0:
             break
     if len(residual) != 0:
-        parser.error(f"unrecognized arguments: {" ".join(residual)}")
+        parser.error(f"unrecognized arguments: {' '.join(residual)}")
 
     if hasattr(args, "fir_vars") and hasattr(args, "hrf_vars"):
         if args.fir_vars == "all" or args.hrf_vars == "all":
