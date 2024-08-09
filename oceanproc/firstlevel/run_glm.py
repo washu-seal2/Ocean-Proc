@@ -410,13 +410,13 @@ def main():
     parser.add_argument("--raw_bids", "-r", type=Path, #required=True,
                         help="Path to the BIDS formatted raw data directory for this subject and session.")
     parser.add_argument("--output_dir", "-o", type=Path, #required=True,
-                        help="Path to the directory to store the results of this analysis")
-    model_group = parser.add_mutually_exclusive_group(required=True)
-    model_group.add_argument("--fir_frames", "-ff", type=int,
-                             help="The number of frames to use in an FIR model.")
-    model_group.add_argument("--hrf", nargs=2, type=int, metavar=("PEAK", "UNDER"),
-                             help="""Two values to describe the hrf function that will be convolved with the task events. 
-                             The first value is the time to the peak, and the second is the undershoot duration. Both in units of seconds.""")
+                        help="Path to the directory to store the results of this analysis. Default is '[derivs_dir]/first_level/sub-[subject]/ses-[session]/func'")
+    # model_group = parser.add_mutually_exclusive_group(required=True)
+    # model_group.add_argument("--fir_frames", "-ff", type=int,
+    #                          help="The number of frames to use in an FIR model.")
+    # model_group.add_argument("--hrf", nargs=2, type=int, metavar=("PEAK", "UNDER"),
+    #                          help="""Two values to describe the hrf function that will be convolved with the task events. 
+    #                          The first value is the time to the peak, and the second is the undershoot duration. Both in units of seconds.""")
     parser.add_argument("--confounds", "-c", nargs="+", #required=True,
                         help="A list of confounds to include from each confound timeseries tsv file.")
     parser.add_argument("--fd_threshold", "-fd", type=float, 
@@ -436,10 +436,10 @@ def main():
     parser.add_argument("--lowpass" "-lp", type=float, nargs="?", const=0.1,
                         help="""The low pass cutoff frequency for signal filtering. Frequencies above this value (Hz) will be filtered out. If the argument
                         is supplied but no value is given, then the value will default to 0.1 Hz""")
-    parser.add_argument("--bp_filter", "-bf", type=float, nargs="*",
-                        help="""Frequency parameters for a bandpass filter. First value is the high cut-off and 
-                        the second value is the low cut-off. Both is units of HZ. If no values are specified, the defaults of 
-                        0.1 and 0.008 will be used.""")
+    # parser.add_argument("--bp_filter", "-bf", type=float, nargs="*",
+    #                     help="""Frequency parameters for a bandpass filter. First value is the high cut-off and 
+    #                     the second value is the low cut-off. Both is units of HZ. If no values are specified, the defaults of 
+    #                     0.1 and 0.008 will be used.""")
     parser.add_argument("--volterra_lag", "-vl", nargs="?", const=2, type=int,
                         help="""The amount of frames to lag for a volterra expansion. If no value is specified
                         the default of 2 will be used. Must be specifed with the '--volterra_columns' option.""")
@@ -518,8 +518,17 @@ def main():
                 for k,v in opts_to_save.items():
                     f.write(f"{k}{make_option(value=v)}\n")
 
+    
+    assert args.derivs_dir.is_dir(), "Derivatives directory must exist"
+    assert args.raw_bids.is_dir(), "Raw data directory must exist"
+    
+    if not hasattr(args, "output_dir"):
+        args.output_dir = args.derivs_dir / f"first_level/sub-{args.subject}/ses-{args.session}/func"
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    log_path = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y-%I:%M%p')}.log"
+    log_dir = args.output_dir.parent / "logs"
+    log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y-%I:%M%p')}.log"
+    log_path.mkdir(parents=True, exist_ok=True) 
     logging.basicConfig(level=logging.INFO,
                         handlers=[
                             logging.FileHandler(log_path)
@@ -544,9 +553,6 @@ def main():
     file_map_list = []
 
     try: 
-        assert args.derivs_dir.is_dir(), "Derivatives directory must exist"
-        assert args.raw_bids.is_dir(), "Raw data directory must exist"
-
         bold_files = sorted(args.derivs_dir.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold*{args.bold_file_type}"))
         assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
 
@@ -565,189 +571,189 @@ def main():
                 "confounds": confound_path,
                 "events": events_path
             })
-    except Exception as e:
-        logger.info(e)
 
-    tr = args.repetition_time if args.repetition_time else None
-    trial_types = set()
-    func_data_list = []
-    design_df_list = []
-    noise_df_list = []
+        tr = args.repetition_time if args.repetition_time else None
+        trial_types = set()
+        func_data_list = []
+        design_df_list = []
+        noise_df_list = []
 
-    for i, run_map in enumerate(file_map_list):
-        logger.info(f"processing bold file: {run_map['bold']}")
-        logger.info(f" loading in BOLD data")
+        for i, run_map in enumerate(file_map_list):
+            logger.info(f"processing bold file: {run_map['bold']}")
+            logger.info(f" loading in BOLD data")
 
-        run_info = len(run_map['bold'].split('run-')) > 1
-        if run_info:
-            run_info = f"run-{run_map['bold'].split('run-')[-1].split('_')[0]}_"
-        else:
-            run_info = ''
+            run_info = len(run_map['bold'].split('run-')) > 1
+            if run_info:
+                run_info = f"run-{run_map['bold'].split('run-')[-1].split('_')[0]}_"
+            else:
+                run_info = ''
 
-        func_data, read_tr = load_data(
-            func_file=run_map["bold"].as_posix(), 
-            brain_mask=args.brain_mask,
-            need_tr=(not tr)
-        )
-        tr = tr if tr else read_tr
+            func_data, read_tr = load_data(
+                func_file=run_map["bold"].as_posix(), 
+                brain_mask=args.brain_mask,
+                need_tr=(not tr)
+            )
+            tr = tr if tr else read_tr
 
-        logger.info(" reading events file and creating design matrix")
-        events_df, run_conditions = events_to_design(   
-            func_data=func_data,
-            tr=tr,
-            event_file=run_map["events"],
-            fir=fir_model,
-            fir_list=fir_vars,
-            hrf=hrf_model,
-            hrf_list=hrf_vars,
-            logger=logger,
-            design_file=f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
-        )
-
-        logger.info(" reading confounds file and creating nuisance matrix")
-        noise_df = make_noise_ts(
-            confounds_file=run_map["confounds"],
-            confound_columns=args.confounds,
-            demean=(not args.detrend_data), 
-            linear_trend=(not args.detrend_data),
-            spike_threshold=args.fd_threshold if args.spike_censoring else None,
-            volterra_expansion=args.volterra_lag,
-            volterra_columns=args.volterra_columns
-        )
-        noise_df_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_nuisance.csv"
-        logger.info(f" saving nuisance matrix to file: {noise_df_filename}")
-        noise_df.to_csv(noise_df_filename)
-
-        if args.nuisance_regression:
-            logger.info(" performing nuisance regression")
-            func_data_residuals = nuisance_regression(
+            logger.info(" reading events file and creating design matrix")
+            events_df, run_conditions = events_to_design(   
                 func_data=func_data,
-                noise_matrix=noise_df,
-                fd_thresh=args.fd_threshold
-            )
-            run_map["data_resids"] = func_data_residuals
-            func_data = func_data_residuals
-        else:
-            logger.info(" appending nuisance matrix to design matrix")
-            noise_df_list.append(noise_df)
-
-        if args.debug:
-            nrimg, img_suffix = create_image(
-                data=func_data,
-                brain_mask=args.brain_mask,
-                tr=tr
-            )
-            nr_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
-            logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
-            nib.save(
-                nrimg,
-                nr_filename
+                tr=tr,
+                event_file=run_map["events"],
+                fir=fir_model,
+                fir_list=fir_vars,
+                hrf=hrf_model,
+                hrf_list=hrf_vars,
+                logger=logger,
+                design_file=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
             )
 
-        # if args.bp_filter:
-        if args.lowpass or args.highpass:
-            logger.info(f" creating high motion mask using framewise displacement threshold of {args.fd_threshold}")
-            sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
-            sample_mask = sample_mask < args.fd_threshold
-            events_df = events_df.loc[sample_mask, :]
-            
-            logger.info(f" detrending and filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
-            func_data_filtered = clean(
-                signals=func_data,
-                detrend=args.detrend_data,
-                sample_mask=sample_mask,
-                # confounds=noise_df,
-                filter="butterworth",
-                # low_pass=args.bp_filter[0],
-                # high_pass=args.bp_filter[1],
-                low_pass=args.lowpass if args.lowpass else None,
-                high_pass=args.highpass if args.highpass else None,
-                t_r=tr,
+            logger.info(" reading confounds file and creating nuisance matrix")
+            noise_df = make_noise_ts(
+                confounds_file=run_map["confounds"],
+                confound_columns=args.confounds,
+                demean=(not args.detrend_data), 
+                linear_trend=(not args.detrend_data),
+                spike_threshold=args.fd_threshold if args.spike_censoring else None,
+                volterra_expansion=args.volterra_lag,
+                volterra_columns=args.volterra_columns
             )
-            run_map["data_filtered"] = func_data_filtered
-            func_data = func_data_filtered
-        elif args.detrend_data:
-            logger.info(" detrending the BOLD data")
-            func_data_detrend = demean_detrend(
-                func_data=func_data
-            )
-            run_map["data_detrend"] = func_data_detrend
-            func_data = func_data_detrend
+            noise_df_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_nuisance.csv"
+            logger.info(f" saving nuisance matrix to file: {noise_df_filename}")
+            noise_df.to_csv(noise_df_filename)
 
-        if args.debug: 
-            cleanimg, img_suffix = create_image(
-                data=func_data,
-                brain_mask=args.brain_mask,
-                tr=tr
-            )
-            cleaned_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
-            logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
-            nib.save(
-                cleanimg,
-                cleaned_filename
-            )
-        
-        # events_df.to_csv(f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_run-{i}_desc-design.csv")
+            if args.nuisance_regression:
+                logger.info(" performing nuisance regression")
+                func_data_residuals = nuisance_regression(
+                    func_data=func_data,
+                    noise_matrix=noise_df,
+                    fd_thresh=args.fd_threshold
+                )
+                run_map["data_resids"] = func_data_residuals
+                func_data = func_data_residuals
+            else:
+                logger.info(" appending nuisance matrix to design matrix")
+                noise_df_list.append(noise_df)
 
-        logger.info(" appending BOLD data and design matrix to run list")
-        trial_types.update(run_conditions)
+            if args.debug:
+                nrimg, img_suffix = create_image(
+                    data=func_data,
+                    brain_mask=args.brain_mask,
+                    tr=tr
+                )
+                nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
+                logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
+                nib.save(
+                    nrimg,
+                    nr_filename
+                )
 
-        func_data_list.append(func_data)
-        design_df_list.append(events_df)
+            # if args.bp_filter:
+            if args.lowpass or args.highpass:
+                logger.info(f" creating high motion mask using framewise displacement threshold of {args.fd_threshold}")
+                sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
+                sample_mask = sample_mask < args.fd_threshold
+                events_df = events_df.loc[sample_mask, :]
+                
+                logger.info(f" detrending and filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
+                func_data_filtered = clean(
+                    signals=func_data,
+                    detrend=args.detrend_data,
+                    sample_mask=sample_mask,
+                    # confounds=noise_df,
+                    filter="butterworth",
+                    # low_pass=args.bp_filter[0],
+                    # high_pass=args.bp_filter[1],
+                    low_pass=args.lowpass if args.lowpass else None,
+                    high_pass=args.highpass if args.highpass else None,
+                    t_r=tr,
+                )
+                run_map["data_filtered"] = func_data_filtered
+                func_data = func_data_filtered
+            elif args.detrend_data:
+                logger.info(" detrending the BOLD data")
+                func_data_detrend = demean_detrend(
+                    func_data=func_data
+                )
+                run_map["data_detrend"] = func_data_detrend
+                func_data = func_data_detrend
 
-    logger.info("concatenating run level BOLD data and design matrices for GLM")
-    final_func_data, final_design_df = create_final_design(
-        data_list=func_data_list,
-        design_list=design_df_list,
-        noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None
-    )
-    final_design_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}-final-design.csv"
-    logger.info(f"saving the final design matrix to file: {final_design_filename}")
-    final_design_df.to_csv(final_design_filename)
+            if args.debug: 
+                cleanimg, img_suffix = create_image(
+                    data=func_data,
+                    brain_mask=args.brain_mask,
+                    tr=tr
+                )
+                cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
+                logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
+                nib.save(
+                    cleanimg,
+                    cleaned_filename
+                )
 
-    logger.info("running GLM on concatenated BOLD data with final design matrix")
-    activation_betas = massuni_linGLM(
-        func_data=final_func_data,
-        design_matrix=final_design_df
-    )
+            logger.info(" appending BOLD data and design matrix to run list")
+            trial_types.update(run_conditions)
 
-    logger.info("saving betas from GLM into files")
-    fir_betas_to_combine = set()
-    for i, c in enumerate(final_design_df.columns):
-        if fir_model and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
-            fir_betas_to_combine.add(c[:-3])
-            continue
-        beta_img, img_suffix = create_image(
-            data=np.expand_dims(activation_betas[i,:], axis=0),
-            brain_mask=args.brain_mask,
-            tr=tr
+            func_data_list.append(func_data)
+            design_df_list.append(events_df)
+
+        logger.info("concatenating run level BOLD data and design matrices for GLM")
+        final_func_data, final_design_df = create_final_design(
+            data_list=func_data_list,
+            design_list=design_df_list,
+            noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None
         )
-        beta_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
-        logger.info(f" saving betas for variable {c} to file: {beta_filename}")
-        nib.save(
-            beta_img,
-            beta_filename
+        final_design_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}-final-design.csv"
+        logger.info(f"saving the final design matrix to file: {final_design_filename}")
+        final_design_df.to_csv(final_design_filename)
+
+        logger.info("running GLM on concatenated BOLD data with final design matrix")
+        activation_betas = massuni_linGLM(
+            func_data=final_func_data,
+            design_matrix=final_design_df
         )
 
-    if fir_model:
-        for condition in fir_betas_to_combine:
-            beta_frames = np.zeros(shape=(fir_model, activation_betas.shape[1]))
-            for f in range(fir_model):
-                beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
-                beta_frames[f,:] = activation_betas[beta_column,:]
+        logger.info("saving betas from GLM into files")
+        fir_betas_to_combine = set()
+        for i, c in enumerate(final_design_df.columns):
+            if fir_model and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
+                fir_betas_to_combine.add(c[:-3])
+                continue
             beta_img, img_suffix = create_image(
-                data=beta_frames,
+                data=np.expand_dims(activation_betas[i,:], axis=0),
                 brain_mask=args.brain_mask,
                 tr=tr
             )
-            beta_filename = f"{args.output_dir}/sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{condition}{img_suffix}"
-            logger.info(f" saving betas for variable {condition} (all {fir_model} modeled frames) to file: {beta_filename}")
+            beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+            logger.info(f" saving betas for variable {c} to file: {beta_filename}")
             nib.save(
                 beta_img,
                 beta_filename
             )
 
-    logger.info("oceanfla complete!")
+        if fir_model:
+            for condition in fir_betas_to_combine:
+                beta_frames = np.zeros(shape=(fir_model, activation_betas.shape[1]))
+                for f in range(fir_model):
+                    beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
+                    beta_frames[f,:] = activation_betas[beta_column,:]
+                beta_img, img_suffix = create_image(
+                    data=beta_frames,
+                    brain_mask=args.brain_mask,
+                    tr=tr
+                )
+                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{condition}{img_suffix}"
+                logger.info(f" saving betas for variable {condition} (all {fir_model} modeled frames) to file: {beta_filename}")
+                nib.save(
+                    beta_img,
+                    beta_filename
+                )
+
+        logger.info("oceanfla complete!")
+
+    except Exception as e:
+        logger.info(e)
+        raise(e)
 
 if __name__ == "__main__":
     main()
