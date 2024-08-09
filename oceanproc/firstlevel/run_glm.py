@@ -17,6 +17,7 @@ import json
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
+from ..utils import exit_program_early
 import logging
 import datetime
 from textwrap import dedent
@@ -753,7 +754,7 @@ def main():
 
     except Exception as e:
         logger.info(e)
-        raise(e)
+        exit_program_early(str(e))
 
 if __name__ == "__main__":
     main()
