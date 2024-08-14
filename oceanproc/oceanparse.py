@@ -76,7 +76,7 @@ class OceanParser(argparse.ArgumentParser):
                 except OSError:
                     err = sys.exc_info()[1]
                     self.error(str(err))
-
+        print(new_arg_strings)
         # return the modified argument list
         return new_arg_strings
     

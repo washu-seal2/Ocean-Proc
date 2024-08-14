@@ -69,8 +69,9 @@ def make_option(value, key=None, delimeter=" "):
     return f"--{key.replace('_', '-')}{second_part}" if key else second_part 
 
 
-def load_data(func_file: str, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
+def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
     tr = None
+    func_file = str(func_file)
     if need_tr:
         sidecar_file = func_file.split(".")[0] + ".json"
         assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
@@ -79,18 +80,20 @@ def load_data(func_file: str, brain_mask: str = None, need_tr: bool = False) -> 
             tr = jd["RepetitionTime"]
 
     if func_file.endswith(".dtseries.nii") or func_file.endswith(".dscalar.nii"):
-        return (nib.load(func_file).get_fdata(), tr)
+        img = nib.load(func_file)
+        return (img.get_fdata(), tr, img.header)
     elif func_file.endswith(".nii") or func_file.endswith(".nii.gz"):
         if brain_mask:
             return (nmask.apply_mask(func_file, brain_mask), tr)
         else:
-            # raise Exception("Volumetric data must also have an accompanying brain mask")
-            return None
+            raise Exception("Volumetric data must also have an accompanying brain mask")
+            # return None
         
 
-def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None):
+def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None, header: nib.cifti2.cifti2.Cifti2Header = None):
     img = None
     suffix = ".nii"
+    d32k = 32492
     if brain_mask:
         img = nmask.unmask(data, brain_mask)
     else:
@@ -109,11 +112,15 @@ def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None):
             suffix = ".dscalar" + suffix
         else:
             raise RuntimeError("TR not supplied or data shape is incorrect")
-        ax1 = nib.cifti2.cifti2_axes.BrainModelAxis(
-            name=(['CIFTI_STRUCTURE_CORTEX_LEFT']*(data.shape[1]/2))+(['CIFTI_STRUCTURE_CORTEX_RIGHT']*(data.shape[1]/2)),
-            vertex=np.arange(data.shape[1]/2),
-            nvertices={'CIFTI_STRUCTURE_CORTEX_LEFT':data.shape[1]/2, 'CIFTI_STRUCTURE_CORTEX_RIGHT':data.shape[1]/2}
-        )
+        ax1 = None
+        if header:
+            ax1 = header.get_axis(1)
+        else:
+            ax1 = nib.cifti2.cifti2_axes.BrainModelAxis(
+                name=(['CIFTI_STRUCTURE_CORTEX_LEFT']*d32k)+(['CIFTI_STRUCTURE_CORTEX_RIGHT']*d32k),
+                vertex=np.concatenate((np.arange(d32k), np.arange(d32k))),
+                nvertices={'CIFTI_STRUCTURE_CORTEX_LEFT':d32k, 'CIFTI_STRUCTURE_CORTEX_RIGHT':d32k}
+            )
         img = nib.cifti2.cifti2.Cifti2Image(data, (ax0, ax1))
     return (img ,suffix)
 
@@ -286,11 +293,13 @@ def events_to_design(func_data: npt.ArrayLike,
         
         col_names = {c:c+"_00" for c in fir_conditions}
         events_long = events_long.rename(columns=col_names)
+        fir_cols_to_add = dict()
         for c in fir_conditions:
             for i in range(1, fir):
-                events_long.loc[:,f"{c}_{i:02d}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
-                # so events do not roll back around to the beginning
-                events_long.loc[:i,f"{c}_{i:02d}"] = 0
+                fir_cols_to_add[f"{c}_{i:02d}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
+                # so events do not roll back around to the beginnin
+                fir_cols_to_add[f"{c}_{i:02d}"][:i] = 0
+        events_long = pd.concat([events_long, pd.DataFrame(fir_cols_to_add, index=events_long.index)], axis=1)
         events_long = events_long.astype(int)
     if hrf:
         hrf_conditions = residual_conditions
@@ -341,7 +350,7 @@ REGRESS OUT NUISANCE VARIABLES
 def nuisance_regression(func_data: npt.ArrayLike, noise_matrix: pd.DataFrame, fd_thresh: float = None):
     ss = StandardScaler()
     # designmat = ss.fit_transform(noise_matrix[noise_matrix["framewise_displacement"]<fd_thresh].to_numpy())
-    designmat = ss.fit_transform(noise_matrix.to_numpy())
+    designmat = ss.fit_transform(noise_matrix.to_numpy().astype(float))
     neuro_data = ss.fit_transform(func_data)
     inv_mat = np.linalg.pinv(designmat)
     beta_data = np.dot(inv_mat, neuro_data)
@@ -400,9 +409,9 @@ def main():
                         help="The subject ID")
     parser.add_argument("--session", "-se",
                         help="The session ID")
-    parser.add_argument("--task", "-t", #required=True,
+    parser.add_argument("--task", "-t", required=True,
                         help="The name of the task to analyze.")
-    parser.add_argument("--bold_file_type", "-ft", #required=True,
+    parser.add_argument("--bold_file_type", "-ft", required=True,
                         help="The file type of the functional runs to use.")
     parser.add_argument("--brain_mask", "-bm", type=Path,
                         help="If the bold file type is volumetric data, a brain mask must also be supplied.")
@@ -413,11 +422,17 @@ def main():
     parser.add_argument("--output_dir", "-o", type=Path, #required=True,
                         help="Path to the directory to store the results of this analysis. Default is '[derivs_dir]/first_level/sub-[subject]/ses-[session]/func'")
     # model_group = parser.add_mutually_exclusive_group(required=True)
-    # model_group.add_argument("--fir_frames", "-ff", type=int,
-    #                          help="The number of frames to use in an FIR model.")
-    # model_group.add_argument("--hrf", nargs=2, type=int, metavar=("PEAK", "UNDER"),
-    #                          help="""Two values to describe the hrf function that will be convolved with the task events. 
-    #                          The first value is the time to the peak, and the second is the undershoot duration. Both in units of seconds.""")
+    parser.add_argument("--fir", "-ff", type=int,
+                        help="The number of frames to use in an FIR model.")
+    parser.add_argument("--fir_vars", nargs="*",
+                        help="""A list of the task regressors to apply this FIR model to. The default is to apply it to all regressors if no
+                        value is specified. A list must be specified if both types of models are being used""")
+    parser.add_argument("--hrf", nargs=2, type=int, metavar=("PEAK", "UNDER"),
+                        help="""Two values to describe the hrf function that will be convolved with the task events. 
+                        The first value is the time to the peak, and the second is the undershoot duration. Both in units of seconds.""")
+    parser.add_argument("--hrf_vars", nargs="*",
+                        help="""A list of the task regressors to apply this HRF model to. The default is to apply it to all regressors if no
+                        value is specifed. A list must be specified if both types of models are being used""")
     parser.add_argument("--confounds", "-c", nargs="+", #required=True,
                         help="A list of confounds to include from each confound timeseries tsv file.")
     parser.add_argument("--fd_threshold", "-fd", type=float, 
@@ -431,10 +446,10 @@ def main():
                         help="Flag to indicate that framewise displacement spike censoring should be included in the nuisance matrix.")
     parser.add_argument("--nuisance_regression", "-nr", action="store_true",
                         help="Flag to indicate that nuisance regression should be performed before performing the GLM for event-related activation.")
-    parser.add_argument("--highpass" "-hp", type=float, nargs="?", const=0.008,
+    parser.add_argument("--highpass", "-hp", type=float, nargs="?", const=0.008,
                         help="""The high pass cutoff frequency for signal filtering. Frequencies below this value (Hz) will be filtered out. If the argument
                         is supplied but no value is given, then the value will default to 0.008 Hz""")
-    parser.add_argument("--lowpass" "-lp", type=float, nargs="?", const=0.1,
+    parser.add_argument("--lowpass", "-lp", type=float, nargs="?", const=0.1,
                         help="""The low pass cutoff frequency for signal filtering. Frequencies above this value (Hz) will be filtered out. If the argument
                         is supplied but no value is given, then the value will default to 0.1 Hz""")
     # parser.add_argument("--bp_filter", "-bf", type=float, nargs="*",
@@ -451,43 +466,57 @@ def main():
     parser.add_argument("--debug", action="store_true",
                         help="")
     
-    subparsers = parser.add_subparsers(title="Models", description="Regressor modeling options", required=True,
-                                       help="select one or more modeling schemes and the variables they should be applied to if using more that one")
-    hrf_parser = subparsers.add_parser("hrf", help="Specify the hemodynamic response function model parameters and the variables to apply the model to (if not all).")
-    hrf_parser.add_argument("--peak_time", "-pt", type=int, default=5,
-                            help="The time to the peak of the hrf to model (in seconds).")
-    hrf_parser.add_argument("--undershoot_dur", "-ut", type=int, default=10,
-                            help="The duration of the undershoot of the hrf to model (in seconds).")
-    hrf_parser.add_argument("--hrf_vars", nargs="+", default="all",
-                            help="""A list of the task regressors to apply this HRF model to. The default is to apply it to all regressors. 
-                            A list must be specified if both types of models are being used""")
+    # subparsers = parser.add_subparsers(title="Models", description="Regressor modeling options", required=True,
+    #                                    help="select one or more modeling schemes and the variables they should be applied to if using more that one")
+    # hrf_parser = subparsers.add_parser("--hrf", help="Specify the hemodynamic response function model parameters and the variables to apply the model to (if not all).")
+    # hrf_parser.add_argument("--peak_time", "-pt", type=int, default=5,
+    #                         help="The time to the peak of the hrf to model (in seconds).")
+    # hrf_parser.add_argument("--undershoot_dur", "-ut", type=int, default=10,
+    #                         help="The duration of the undershoot of the hrf to model (in seconds).")
+    # hrf_parser.add_argument("--hrf_vars", nargs="+", default="all",
+    #                         help="""A list of the task regressors to apply this HRF model to. The default is to apply it to all regressors. 
+    #                         A list must be specified if both types of models are being used""")
 
-    fir_parser = subparsers.add_parser("fir", help="Specify the finite impluse response model parameters and the variables to apply the model to (if not all).")
-    fir_parser.add_argument("--num_frames", "-nf", type=int, default=20,
-                            help="The number of frames to include in the FIR model for each variable it applies to.")
-    fir_parser.add_argument("--fir_vars", nargs="+", default="all",
-                            help="""A list of the task regressors to apply this FIR model to. The default is to apply it to all regressors. 
-                            A list must be specified if both types of models are being used""")
+    # fir_parser = subparsers.add_parser("--fir", help="Specify the finite impluse response model parameters and the variables to apply the model to (if not all).")
+    # fir_parser.add_argument("--num_frames", "-nf", type=int, default=20,
+    #                         help="The number of frames to include in the FIR model for each variable it applies to.")
+    # fir_parser.add_argument("--fir_vars", nargs="+", default="all",
+    #                         help="""A list of the task regressors to apply this FIR model to. The default is to apply it to all regressors. 
+    #                         A list must be specified if both types of models are being used""")
     
-    num_subparsers = 2
-    # parse the arguments of the main parser and each model subparser
+    # hrf_group = ["hrf","hrf_vars"]
+    # fir_group = ["fir_frames", "fir_vars"]
+    # volterra_group = ["volterra_lag", "volterra_columns"]
+    # mutually_inclusive_groups = [hrf_group, fir_group, volterra_group]
+    # model_groups = [hrf_group, fir_group]
     args, residual = parser.parse_known_args()
-    for i in range(num_subparsers):
-        args, residual = parser.parse_known_args(residual, namespace=args)
-        if len(residual) == 0:
-            break
-    if len(residual) != 0:
-        parser.error(f"unrecognized arguments: {' '.join(residual)}")
+    # num_subparsers = 2      
+    # parse the arguments of the main parser and each model subparser
+    
+   
+    # for i in range(num_subparsers):
+    #     args, residual = parser.parse_known_args(residual, namespace=args)
+    #     if len(residual) == 0:
+    #         break
+    # if len(residual) != 0:
+    #     parser.error(f"unrecognized arguments: {' '.join(residual)}")
 
-    if hasattr(args, "fir_vars") and hasattr(args, "hrf_vars"):
-        if args.fir_vars == "all" or args.hrf_vars == "all":
-            parser.error("Must specify variables to apply each model to if using both types of models")
+    
+    # if hasattr(args, "hrf") and hasattr(args, "fir"):
+    #     if args.fir_vars == "all" or args.hrf_vars == "all":
+    #         parser.error("Must specify variables to apply each model to if using both types of models")
         
-    if args.bp_filter != None:
-        if len(args.bp_filter) == 0:
-            args.bp_filter = [0.1, 0.008]
-        elif len(args.bp_filter) != 0 and len(args.bp_filter) != 2:
-            parser.error("Expecting 0 or 2 arguments for the '--bp_filter' option")
+    if args.hrf != None and args.fir != None:
+        if not args.fir_vars or not args.hrf_vars:
+            parser.error("Must specify variables to apply each model to if using both types of models")
+    elif args.hrf == None and args.fir == None:
+        parser.error("Must include model parameters for at least one of the models, fir or hrf.")
+
+    # if args.bp_filter != None:
+    #     if len(args.bp_filter) == 0:
+    #         args.bp_filter = [0.1, 0.008]
+    #     elif len(args.bp_filter) != 0 and len(args.bp_filter) != 2:
+    #         parser.error("Expecting 0 or 2 arguments for the '--bp_filter' option")
     
     if args.bold_file_type[0] != ".":
         args.bold_file_type = "." + args.bold_file_type
@@ -523,14 +552,14 @@ def main():
     assert args.derivs_dir.is_dir(), "Derivatives directory must exist"
     assert args.raw_bids.is_dir(), "Raw data directory must exist"
     
-    if not hasattr(args, "output_dir"):
+    if not hasattr(args, "output_dir") or args.output_dir == None:
         args.output_dir = args.derivs_dir / f"first_level/sub-{args.subject}/ses-{args.session}/func"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    log_dir = args.output_dir.parent / "logs"
-    log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y-%I:%M%p')}.log"
-    log_path.mkdir(parents=True, exist_ok=True) 
-    logging.basicConfig(level=logging.INFO,
+    log_dir = args.output_dir.parent / "logs" 
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y_%I-%M%p')}.log"
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO,
                         handlers=[
                             logging.FileHandler(log_path)
                         ])
@@ -544,13 +573,15 @@ def main():
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f"{k} : {v}")
 
-    hrf_model = (args.peak_time, args.undershoot_dur) if hasattr(args, "peak_time") else None
-    hrf_vars = args.hrf_vars if hasattr(args, "hrf_vars") and args.hrf_vars != "all" else None
+    # hrf_model = (args.peak_time, args.undershoot_dur) if hasattr(args, "peak_time") else None
+    # hrf_vars = args.hrf_vars if hasattr(args, "hrf_vars") and args.hrf_vars != "all" else None
 
-    fir_model = args.num_frames if hasattr(args, "num_frames") else None
-    fir_vars = args.fir_vars if hasattr(args, "fir_vars") and args.fir_vars != "all" else None
+    # fir_model = args.num_frames if hasattr(args, "num_frames") else None
+    # fir_vars = args.fir_vars if hasattr(args, "fir_vars") and args.fir_vars != "all" else None
 
-    model_type = "MixedModel" if fir_model and hrf_model else "FIR" if fir_model else "HRF" 
+    # model_type = "MixedModel" if fir_model and hrf_model else "FIR" if fir_model else "HRF" 
+        
+    model_type = "MixedModel" if args.fir and args.hrf else "FIR" if args.fir else "HRF" 
     file_map_list = []
 
     try: 
@@ -583,17 +614,23 @@ def main():
             logger.info(f"processing bold file: {run_map['bold']}")
             logger.info(f" loading in BOLD data")
 
-            run_info = len(run_map['bold'].split('run-')) > 1
+            run_info = len(str(run_map['bold']).split('run-')) > 1
             if run_info:
-                run_info = f"run-{run_map['bold'].split('run-')[-1].split('_')[0]}_"
+                run_info = f"run-{str(run_map['bold']).split('run-')[-1].split('_')[0]}_"
             else:
                 run_info = ''
 
-            func_data, read_tr = load_data(
-                func_file=run_map["bold"].as_posix(), 
+            data_info = load_data(
+                func_file=run_map['bold'], 
                 brain_mask=args.brain_mask,
                 need_tr=(not tr)
             )
+            func_data = read_tr = header = None
+            if len(data_info) == 3:
+                func_data, read_tr, header = data_info
+            else:
+                func_data, read_tr = data_info
+
             tr = tr if tr else read_tr
 
             logger.info(" reading events file and creating design matrix")
@@ -601,10 +638,10 @@ def main():
                 func_data=func_data,
                 tr=tr,
                 event_file=run_map["events"],
-                fir=fir_model,
-                fir_list=fir_vars,
-                hrf=hrf_model,
-                hrf_list=hrf_vars,
+                fir=args.fir,
+                fir_list=args.fir_vars if args.fir_vars else None,
+                hrf=args.hrf,
+                hrf_list=args.hrf_vars if args.hrf_vars else None,
                 logger=logger,
                 design_file=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
             )
@@ -640,7 +677,8 @@ def main():
                 nrimg, img_suffix = create_image(
                     data=func_data,
                     brain_mask=args.brain_mask,
-                    tr=tr
+                    tr=tr,
+                    header=header
                 )
                 nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
                 logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
@@ -683,7 +721,8 @@ def main():
                 cleanimg, img_suffix = create_image(
                     data=func_data,
                     brain_mask=args.brain_mask,
-                    tr=tr
+                    tr=tr,
+                    header=header
                 )
                 cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
                 logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
@@ -717,7 +756,7 @@ def main():
         logger.info("saving betas from GLM into files")
         fir_betas_to_combine = set()
         for i, c in enumerate(final_design_df.columns):
-            if fir_model and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
+            if args.fir and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
                 fir_betas_to_combine.add(c[:-3])
                 continue
             beta_img, img_suffix = create_image(
@@ -732,10 +771,10 @@ def main():
                 beta_filename
             )
 
-        if fir_model:
+        if args.fir:
             for condition in fir_betas_to_combine:
-                beta_frames = np.zeros(shape=(fir_model, activation_betas.shape[1]))
-                for f in range(fir_model):
+                beta_frames = np.zeros(shape=(args.fir, activation_betas.shape[1]))
+                for f in range(args.fir):
                     beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
                     beta_frames[f,:] = activation_betas[beta_column,:]
                 beta_img, img_suffix = create_image(
@@ -744,7 +783,7 @@ def main():
                     tr=tr
                 )
                 beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{condition}{img_suffix}"
-                logger.info(f" saving betas for variable {condition} (all {fir_model} modeled frames) to file: {beta_filename}")
+                logger.info(f" saving betas for variable {condition} (all {args.fir} modeled frames) to file: {beta_filename}")
                 nib.save(
                     beta_img,
                     beta_filename
@@ -753,7 +792,7 @@ def main():
         logger.info("oceanfla complete!")
 
     except Exception as e:
-        logger.info(e)
+        logger.error(e)
         exit_program_early(str(e))
 
 if __name__ == "__main__":
