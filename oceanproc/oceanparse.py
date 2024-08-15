@@ -56,10 +56,17 @@ class OceanParser(argparse.ArgumentParser):
                         if arg_string.endswith(".json"):
                             jd = json.load(args_file)
                             for k,v in jd.items():
-                                if not v or not v.strip():
-                                    file_arg_strings.append(k)
-                                    continue
-                                file_arg_strings.extend([k,v])
+                                file_arg_strings.append(k)
+                                if isinstance(v, list):
+                                    for val in v:
+                                        file_arg_strings.append(str(val))
+                                elif isinstance(v, str):
+                                    if not v or not v.strip():
+                                        continue
+                                    else:
+                                        file_arg_strings.append(v)
+                                else:
+                                    file_arg_strings.append(str(v))
                         else:
                             for arg_line in args_file.read().splitlines():
                                 for arg in self.convert_arg_line_to_args(arg_line):
@@ -69,7 +76,6 @@ class OceanParser(argparse.ArgumentParser):
                 except OSError:
                     err = sys.exc_info()[1]
                     self.error(str(err))
-
         # return the modified argument list
         return new_arg_strings
     

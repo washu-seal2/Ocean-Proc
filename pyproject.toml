@@ -23,6 +23,7 @@ twine = "^5.1.0"
 
 [tool.poetry.scripts]
 oceanproc = "oceanproc.ocean_proc:main"
+oceanfla = "oceanproc.firstlevel.run_glm:main"
 
 [build-system]
 requires = ["poetry-core"]
