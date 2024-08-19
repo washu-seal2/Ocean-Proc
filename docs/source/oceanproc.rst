@@ -32,3 +32,13 @@ oceanproc.oceanparse module
    :members:
    :undoc-members:
    :show-inheritance:
+
+oceanproc.firstlevel.run_glm module
+-----------------------------------
+
+.. automodule:: oceanproc.firstlevel.run_glm
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
