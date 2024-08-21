@@ -17,7 +17,7 @@ import json
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
-from ..utils import exit_program_early
+from ..utils import exit_program_early, make_option
 import logging
 import datetime
 from textwrap import dedent
@@ -32,41 +32,43 @@ TODO:
 
 """
 
-def make_option(value, key=None, delimeter=" "):
-    """
-    Generate a string, representing an option that gets fed into a subprocess.
+# def make_option(value, key: str=None, delimeter: str=" ", convert_underscore: bool=False):
+#     """
+#     Generate a string, representing an option that gets fed into a subprocess.
 
-    For example, if a key is 'option' and its value is True, the option string it will generate would be:
+#     For example, if a key is 'option' and its value is True, the option string it will generate would be:
 
-        --option
+#         --option
 
-    If value is equal to some string 'value', then the string would be:
+#     If value is equal to some string 'value', then the string would be:
 
-        --option value
+#         --option value
 
-    If value is a list of strings:
+#     If value is a list of strings:
 
-        --option value1 value2 ... valuen
+#         --option value1 value2 ... valuen
 
-    :param key: Name of option to pass into a subprocess, without double hyphen at the beginning.
-    :type key: str
-    :param value: Value to pass in along with the 'key' param.
-    :type value: str or bool or list[str] or None
-    :param delimeter: character to separate the key and the value in the option string. Default is a space.
-    :type delimeter: str
-    :return: String to pass as an option into a subprocess call.
-    :rtype: str
-    """
-    second_part = None
-    if type(value) == bool and value:
-        second_part = " "
-    if type(value) == list:
-        second_part = f"{delimeter}{delimeter.join(value)}"
-    elif type(value) == str or type(value) == int or type(value) == float:
-        second_part = f"{delimeter}{value}"
-    else:
-        return ""
-    return f"--{key.replace('_', '-')}{second_part}" if key else second_part 
+#     :param key: Name of option to pass into a subprocess, without double hyphen at the beginning.
+#     :type key: str
+#     :param value: Value to pass in along with the 'key' param.
+#     :type value: str or bool or list[str] or None
+#     :param delimeter: character to separate the key and the value in the option string. Default is a space.
+#     :type delimeter: str
+#     :return: String to pass as an option into a subprocess call.
+#     :rtype: str
+#     """
+#     second_part = None
+#     if key and convert_underscore:
+#         key = key.replace("_", "-")
+#     if not value:
+#         return ""
+#     if type(value) == bool and value:
+#         second_part = " "
+#     if type(value) == list:
+#         second_part = f"{delimeter}{" ".join(value)}"
+#     else:
+#         second_part = f"{delimeter}{str(value)}"
+#     return f"--{key}{second_part}" if key else second_part 
 
 
 def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
@@ -409,11 +411,11 @@ def main():
     session_arguments = parser.add_argument_group("Session Specific")
     config_arguments = parser.add_argument_group("Configuration Arguments", "These arguments are saved to a file if the '--export_args' option is used")
 
-    session_arguments.add_argument("--subject", "-su",
+    session_arguments.add_argument("--subject", "-su", required=True,
                         help="The subject ID")
-    session_arguments.add_argument("--session", "-se",
+    session_arguments.add_argument("--session", "-se", required=True,
                         help="The session ID")
-    session_arguments.add_argument("--export_args", "-ea", 
+    session_arguments.add_argument("--export_args", "-ea", type=Path,
                         help="Path to a file to save the current arguments.")
     session_arguments.add_argument("--debug", action="store_true",
                         help="Use this flag to save intermediate outputs for a chance to debug inputs")
@@ -499,7 +501,7 @@ def main():
                     continue
                 opts_to_save[a.option_strings[0]] = all_opts[a.dest]
         with open(args.export_args, "w") as f:
-            if args.export_args.endswith(".json"):
+            if args.export_args.suffix == ".json":
                 f.write(json.dumps(opts_to_save, indent=4))
             else:
                 for k,v in opts_to_save.items():
@@ -529,14 +531,6 @@ def main():
     # log the arguments used for this run
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f"{k} : {v}")
-
-    # hrf_model = (args.peak_time, args.undershoot_dur) if hasattr(args, "peak_time") else None
-    # hrf_vars = args.hrf_vars if hasattr(args, "hrf_vars") and args.hrf_vars != "all" else None
-
-    # fir_model = args.num_frames if hasattr(args, "num_frames") else None
-    # fir_vars = args.fir_vars if hasattr(args, "fir_vars") and args.fir_vars != "all" else None
-
-    # model_type = "MixedModel" if fir_model and hrf_model else "FIR" if fir_model else "HRF" 
         
     model_type = "MixedModel" if args.fir and args.hrf else "FIR" if args.fir else "HRF" 
     file_map_list = []
