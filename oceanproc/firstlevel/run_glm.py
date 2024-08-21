@@ -60,7 +60,7 @@ def make_option(value, key=None, delimeter=" "):
     second_part = None
     if type(value) == bool and value:
         second_part = " "
-    if type(value) == list:
+    elif type(value) == list:
         second_part = f"{delimeter}{delimeter.join(value)}"
     elif type(value) == str or type(value) == int or type(value) == float:
         second_part = f"{delimeter}{value}"
