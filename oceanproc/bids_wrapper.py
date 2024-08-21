@@ -180,6 +180,14 @@ def run_dcm2bids(source_dir:Path,
 def run_dcm2niix(source_dir:Path, 
                  tmp_nifti_dir:Path,
                  clean_up_func=None):
+    """
+    Run dcm2niix with the given input and output directories.
+
+    :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
+    :type source_dir: pathlib.Path
+    :param tmp_nifti_dir: Path to the directory to store the newly made NIFTI files
+    :type tmp_nifti_dir: pathlib.Path
+    """
     
     if not source_dir.exists():
         exit_program_early(f"Path {source_dir} does not exist.")
@@ -234,13 +242,13 @@ def dicom_to_bids(subject:str,
     :param session: Session name (ex. 'ses-01', session would be '01')
     :type session: str
     :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
-    :type source_dir: str
+    :type source_dir: pathlib.Path
     :param bids_dir: Path to the bids directory to store the newly made NIFTI files
-    :type bids_dir: str
+    :type bids_dir: pathlib.Path
     :param bids_config: Path to dcm2bids config file, which maps raw sourcedata to BIDS-compliant counterpart
-    :type bids_config: str
+    :type bids_config: pathlib.Path
     :param nordic_config: Path to second dcm2bids config file, needed for additional post processing if NORDIC data that one BIDS config file can't handle.
-    :type nordic_config: str
+    :type nordic_config: pathlib.Path
     :param nifti: Specify that the soure directory contains NIFTI files instead of DICOM
     :type nifti: bool
     """

@@ -29,43 +29,6 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     return dir_to_make
 
 
-# def make_option(key, value, delimeter=" "):
-#     """
-#     Generate a string, representing an option that gets fed into a subprocess.
-
-#     For example, if a key is 'option' and its value is True, the option string it will generate would be:
-
-#         --option
-
-#     If value is equal to some string 'value', then the string would be:
-
-#         --option value
-
-#     If value is a list of strings:
-
-#         --option value1 value2 ... valuen
-
-#     :param key: Name of option to pass into a subprocess, without double hyphen at the beginning.
-#     :type key: str
-#     :param value: Value to pass in along with the 'key' param.
-#     :type value: str or bool or list[str] or None
-#     :param delimeter: character to separate the key and the value in the option string. Default is a space.
-#     :type delimeter: str
-#     :return: String to pass as an option into a subprocess call.
-#     :rtype: str
-#     """
-#     first_part = f"--{key.replace('_', '-')}{delimeter}"
-
-#     if type(value) == bool and value:
-#         return first_part[:-1]
-#     elif type(value) == list:
-#         return first_part + delimeter.join(value)
-#     elif type(value) == str:
-#         return first_part + value
-#     else:
-#         return ""
-
-
 def run_fmri_prep(subject:str,
                   bids_path:Path,
                   derivs_path:Path,
@@ -125,7 +88,6 @@ def run_fmri_prep(subject:str,
         exit_program_early("Program 'fmriprep-docker' has run into an error.", clean_up)
     clean_up()
     
-
 
 
 def main():

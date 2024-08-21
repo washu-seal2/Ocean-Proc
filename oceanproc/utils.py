@@ -36,7 +36,7 @@ def prompt_user_continue(msg:str) -> bool:
 
 def make_option(value, key: str=None, delimeter: str=" ", convert_underscore: bool=False):
     """
-    Generate a string, representing an option that gets fed into a subprocess.
+    Generate a string, representing an option that gets fed into a subprocess or script.
 
     For example, if a key is 'option' and its value is True, the option string it will generate would be:
 
@@ -49,11 +49,10 @@ def make_option(value, key: str=None, delimeter: str=" ", convert_underscore: bo
     If value is a list of strings:
 
         --option value1 value2 ... valuen
-
-    :param key: Name of option to pass into a subprocess, without double hyphen at the beginning.
-    :type key: str
     :param value: Value to pass in along with the 'key' param.
-    :type value: str or bool or list[str] or None
+    :type value: any
+    :param key: Name of option, without any hyphen at the beginning.
+    :type key: str
     :param delimeter: character to separate the key and the value in the option string. Default is a space.
     :type delimeter: str
     :param convert_underscore: flag to indicate that underscores should be replaced with '-'

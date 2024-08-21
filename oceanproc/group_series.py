@@ -44,7 +44,7 @@ def get_func_from_bids(bids_path: Path,
     Read in the JSON associated with task-based runs from the bids dir, and pair with a localizer run.
 
     :param bids_path: path to BIDS-compliant .nii/.json files
-    :type bids_path: str
+    :type bids_path: pathlib.Path
     :param localizers: set of localizer IDs
     :type localizers: set[int]
     :param json_dict: dict with each key being a series number, each value being an object representation of it's JSON file with added 'bidsname' and 'filename' attributes
