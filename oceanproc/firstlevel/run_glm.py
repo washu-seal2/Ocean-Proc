@@ -69,7 +69,9 @@ def make_option(value, key=None, delimeter=" "):
     return f"--{key.replace('_', '-')}{second_part}" if key else second_part 
 
 
-def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
+def load_data(func_file: str|Path,
+              brain_mask: str = None,
+              need_tr: bool = False) -> np.ndarray:
     tr = None
     func_file = str(func_file)
     if need_tr:
@@ -87,10 +89,13 @@ def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False
             return (nmask.apply_mask(func_file, brain_mask), tr, None)
         else:
             raise Exception("Volumetric data must also have an accompanying brain mask")
-            # return None
-        
+            # return None 
 
-def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None, header: nib.cifti2.cifti2.Cifti2Header = None):
+
+def create_image(data: npt.ArrayLike,
+                 brain_mask: str = None,
+                 tr: float = None,
+                 header: nib.cifti2.cifti2.Cifti2Header = None):
     img = None
     suffix = ".nii"
     d32k = 32492
@@ -127,6 +132,20 @@ def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None, 
 
 
 def demean_detrend(func_data: npt.ArrayLike) -> np.ndarray:
+    """
+    Subtracts the mean and a least-squares-fit line from each timepoint at every vertex/voxel.
+    
+    Parameters
+    ----------
+
+    func_data: npt.ArrayLike 
+        array containing functional timeseries data
+
+    Returns
+    -------
+    data_dd: np.ndarray
+        A demeaned/detrended copy of the input array
+    """
     data_dd = signal.detrend(func_data, axis=0, type = 'linear')
     return data_dd
 
@@ -225,20 +244,18 @@ def find_nearest(array, value):
 
 
 def make_noise_ts(confounds_file: str, 
-                  confound_columns: list, 
+                  confounds_columns: list, 
                   demean: bool = False, 
                   linear_trend: bool = False, 
                   spike_threshold: float = None,
                   volterra_expansion: int = None,
-                  volterra_columns: list = None
-                  ):
-    fd = "framewise_displacement"
-    select_columns = set(confound_columns)
+                  volterra_columns: list = None):
+    select_columns = set(confounds_columns)
     if volterra_columns:
         select_columns.update(volterra_columns)
     nuisance = pd.read_csv(confounds_file, delimiter='\t').loc[:,list(select_columns)]
-    if fd in select_columns:
-        nuisance.loc[0, fd] = 0
+    if "framewise_displacement" in select_columns:
+        nuisance.loc[0, "framewise_displacement"] = 0
 
     if demean: 
         nuisance["mean"] = 1
@@ -246,10 +263,15 @@ def make_noise_ts(confounds_file: str,
     if linear_trend:
         nuisance["trend"] = np.arange(0, len(nuisance))
 
+    """
+    Add a new column denoting indices where a frame 
+    is censored for each row in the framewise_displacement
+    that is larger than spike_threshold.
+    """
     if spike_threshold:
         b = 0
         for a in range(len(nuisance)):
-            if nuisance.loc[a,fd] > spike_threshold:
+            if nuisance.loc[a,"framewise_displacement"] > spike_threshold:
                 nuisance[f"spike{b}"] = 0
                 nuisance.loc[a, f"spike{b}"] = 1
                 b += 1
@@ -259,6 +281,11 @@ def make_noise_ts(confounds_file: str,
             for lag in range(volterra_expansion):
                 nuisance.loc[:, f"{vc}_{lag+1}"] = nuisance.loc[:, vc].shift(lag+1)
         nuisance.fillna(0, inplace=True)
+    elif volterra_expansion:
+        raise RuntimeError("You must specify which columns you'd like to apply Volterra expansion to.")
+    elif volterra_columns:
+        raise RuntimeError("You must specify the lag applied in Volterra expansion.")
+
 
     return nuisance
 
@@ -603,7 +630,7 @@ def main():
             logger.info(" reading confounds file and creating nuisance matrix")
             noise_df = make_noise_ts(
                 confounds_file=run_map["confounds"],
-                confound_columns=args.confounds,
+                confounds_columns=args.confounds,
                 demean=(not args.detrend_data), 
                 linear_trend=(not args.detrend_data),
                 spike_threshold=args.fd_threshold if args.spike_censoring else None,
