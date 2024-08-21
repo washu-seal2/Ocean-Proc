@@ -286,13 +286,12 @@ def make_noise_ts(confounds_file: str,
     elif volterra_columns:
         raise RuntimeError("You must specify the lag applied in Volterra expansion.")
 
-
     return nuisance
 
 
 def events_to_design(func_data: npt.ArrayLike, 
                      tr: float, 
-                     event_file: str, 
+                     event_file: str | Path, 
                      fir: int = None, 
                      hrf: tuple[int] = None, 
                      fir_list: list[str] = None,  
