@@ -32,45 +32,6 @@ TODO:
 
 """
 
-# def make_option(value, key: str=None, delimeter: str=" ", convert_underscore: bool=False):
-#     """
-#     Generate a string, representing an option that gets fed into a subprocess.
-
-#     For example, if a key is 'option' and its value is True, the option string it will generate would be:
-
-#         --option
-
-#     If value is equal to some string 'value', then the string would be:
-
-#         --option value
-
-#     If value is a list of strings:
-
-#         --option value1 value2 ... valuen
-
-#     :param key: Name of option to pass into a subprocess, without double hyphen at the beginning.
-#     :type key: str
-#     :param value: Value to pass in along with the 'key' param.
-#     :type value: str or bool or list[str] or None
-#     :param delimeter: character to separate the key and the value in the option string. Default is a space.
-#     :type delimeter: str
-#     :return: String to pass as an option into a subprocess call.
-#     :rtype: str
-#     """
-#     second_part = None
-#     if key and convert_underscore:
-#         key = key.replace("_", "-")
-#     if not value:
-#         return ""
-#     if type(value) == bool and value:
-#         second_part = " "
-#     if type(value) == list:
-#         second_part = f"{delimeter}{" ".join(value)}"
-#     else:
-#         second_part = f"{delimeter}{str(value)}"
-#     return f"--{key}{second_part}" if key else second_part 
-
-
 def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
     tr = None
     func_file = str(func_file)
