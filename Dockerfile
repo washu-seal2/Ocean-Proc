@@ -4,12 +4,16 @@
 
 # Change the entrypoint to run a version of oceanproc that's NOT the wrapper
 
+FROM unfmontreal/dcm2bids:latest
 # set environment vars
 FROM nipreps/fmriprep:latest
 ENV OCEANPROC_ROOT=/opt/oceanproc
 COPY . ${OCEANPROC_ROOT}/src
 WORKDIR ${OCEANPROC_ROOT}/src
+
+
 SHELL ["/bin/bash", "-c"]
+
 
 # install oceanproc
 RUN \
