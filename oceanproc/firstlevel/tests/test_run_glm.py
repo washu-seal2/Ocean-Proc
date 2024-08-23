@@ -129,6 +129,35 @@ def test_events_to_design(tmp_path,
         assert len([col for col in events_df.columns if re.match(pattern, col)]) == fir
 
 
+@pytest.mark.parametrize("demean,linear_trend,spike_threshold,volterra_expansion,volterra_columns",
+                         [(False, False, None, None, None),
+                          (True, False, None, None, None),
+                          (False, True, None, None, None),
+                          (True, True, None, None, None),
+                          (True, True, 0.5, None, None),
+                          (True, True, 0.5, 1, ["volterra"]),
+                          (True, True, 0.5, 3, ["volterra"])])
+def test_nuisance_regression(tmp_path,
+                             confounds_df,
+                             confounds_columns,
+                             random_fdata,
+                             demean,
+                             linear_trend,
+                             spike_threshold,
+                             volterra_expansion,
+                             volterra_columns):
+    confounds_file = tmp_path / "tmp.tsv"
+    confounds_df.to_csv(confounds_file, sep='\t')
+    noise_ts = make_noise_ts(confounds_file,
+                       confounds_columns,
+                       demean,
+                       linear_trend,
+                       spike_threshold,
+                       volterra_expansion,
+                       volterra_columns)
+    data_minus_residuals = nuisance_regression(random_fdata, noise_ts)
+     
+
 # def test_hrf_convolve_features(tmp_path, 
                                # random_signaldf):
     # cfeats = hrf_convolve_features(random_signaldf)

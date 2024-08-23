@@ -416,12 +416,33 @@ def events_to_design(func_data: npt.ArrayLike,
     return (events_long, conditions)
 
 
-
 def bandpass_filter(func_data: npt.ArrayLike,
                     tr: float,
                     high_cut: float = 0.1,
                     low_cut: float = 0.008,
                     order: int = 2 ):
+    """
+    Apply a bandpass filter to the functional data, between two frequencies.
+
+    Parameters
+    ----------
+    func_data: npt.ArrayLike
+        A numpy array representing BOLD data
+    tr: float
+        Repetition time at the scanner
+    high_cut: float
+        Frequency above which the bandpass filter will be applied
+    low_cut: float
+        Frequency below which the bandpass filter will be applied
+    order: int
+        Order of the filter
+
+    Returns
+    -------
+
+    filtered_data: npt.ArrayLike
+        A numpy array representing BOLD data with the bandpass filter applied
+    """
     fs = 1/tr
     nyquist = 1/(2*tr)
     high = high_cut/nyquist
@@ -435,29 +456,58 @@ def bandpass_filter(func_data: npt.ArrayLike,
     return filtered_data
 
 
-"""
-REGRESS OUT NUISANCE VARIABLES
-"""
 def nuisance_regression(func_data: npt.ArrayLike,
                         noise_matrix: pd.DataFrame,
-                        fd_thresh: float = None):
+                        **kwargs):
+    """
+    Regresses out given nuisance variables from functional data
+
+    Parameters
+    ----------
+
+    func_data: npt.ArrayLike
+        A numpy array representing BOLD data
+    noise_matrix: pd.DataFrame
+        Matrix containing nuisance regressors
+
+    Returns
+    -------
+    
+    Returns a numpy array representing BOLD data with given nuisance regressors regressed away.
+    """
     ss = StandardScaler()
     # designmat = ss.fit_transform(noise_matrix[noise_matrix["framewise_displacement"]<fd_thresh].to_numpy())
     designmat = ss.fit_transform(noise_matrix.to_numpy().astype(float))
     neuro_data = ss.fit_transform(func_data)
-    inv_mat = np.linalg.pinv(designmat)
-    beta_data = np.dot(inv_mat, neuro_data)
+    inv_designmat = np.linalg.pinv(designmat)
+    beta_data = np.dot(inv_designmat, neuro_data)
     est_values = np.dot(designmat, beta_data)
 
     return func_data - est_values
 
 
-"""
-COMBINE DESIGN MATRICES 
-"""
 def create_final_design(data_list: list[npt.ArrayLike],
                         design_list: list[pd.DataFrame],
                         noise_list: list[pd.DataFrame] = None):
+    """
+    Creates a final, concatenated design matrix for all functional runs in a session
+
+    Parameters
+    ----------
+
+    data_list: list[npt.ArrayLike]
+        List of numpy arrays representing BOLD data
+    design_list: list[pd.DataFrame]
+        List of created design matrices corresponding to each respective BOLD run in data_list
+    noise_list: list[pd.DataFrame]
+        List of DataFrame objects corresponding to models of noise for each respective BOLD run in data_list
+
+    Returns
+    -------
+
+    Returns a tuple containing the final concatenated data in index 0, and the 
+    final concatenated design matrix in index 1.
+    """
     num_runs = len(data_list)
     assert num_runs == len(design_list), "There should be the same number of design matrices and functional runs"
     
@@ -478,10 +528,19 @@ def create_final_design(data_list: list[npt.ArrayLike],
     return (final_data, final_design)
 
 
-
-# MODIFY FUNCTION
 def massuni_linGLM(func_data: npt.ArrayLike,
                    design_matrix: pd.DataFrame):
+    """
+    Compute the mass univariate GLM.
+
+    Parameters
+    ----------
+
+    func_data: npt.ArrayLike
+        Numpy array representing BOLD data
+    design_matrix: pd.DataFrame
+        DataFrame representing a design matrix for the GLM
+    """
     ss = StandardScaler()
     design_matrix = ss.fit_transform(design_matrix.to_numpy())
     neuro_data = ss.fit_transform(func_data)
