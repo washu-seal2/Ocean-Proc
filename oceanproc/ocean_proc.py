@@ -7,7 +7,7 @@ from pathlib import Path
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue
+from .utils import exit_program_early, prompt_user_continue, make_option
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -16,61 +16,24 @@ import json
 from textwrap import dedent
 
 
-def make_work_directory(dir_path:str, subject:str, session:str) -> str:
-    dir_to_make = f"{Path(dir_path).as_posix()}/sub-{subject}_ses-{session}"
-    if os.path.isdir(dir_to_make):
+def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
+    dir_to_make = dir_path / f"sub-{subject}_ses-{session}"
+    if dir_to_make.exists():
         want_to_delete = prompt_user_continue(dedent("""
             A work directory already exists for this subject and session. 
             Would you like to delete its contents and start fresh?
             """))
         if want_to_delete:
             shutil.rmtree(dir_to_make)
-    os.makedirs(dir_to_make, exist_ok=True)
+    dir_to_make.mkdir(exist_ok=True)
     return dir_to_make
-
-
-def make_option(key, value, delimeter=" "):
-    """
-    Generate a string, representing an option that gets fed into a subprocess.
-
-    For example, if a key is 'option' and its value is True, the option string it will generate would be:
-
-        --option
-
-    If value is equal to some string 'value', then the string would be:
-
-        --option value
-
-    If value is a list of strings:
-
-        --option value1 value2 ... valuen
-
-    :param key: Name of option to pass into a subprocess, without double hyphen at the beginning.
-    :type key: str
-    :param value: Value to pass in along with the 'key' param.
-    :type value: str or bool or list[str] or None
-    :param delimeter: character to separate the key and the value in the option string. Default is a space.
-    :type delimeter: str
-    :return: String to pass as an option into a subprocess call.
-    :rtype: str
-    """
-    first_part = f"--{key.replace('_', '-')}{delimeter}"
-
-    if type(value) == bool and value:
-        return first_part[:-1]
-    elif type(value) == list:
-        return first_part + delimeter.join(value)
-    elif type(value) == str:
-        return first_part + value
-    else:
-        return ""
 
 
 def run_fmri_prep(subject:str,
                   bids_path:Path,
                   derivs_path:Path,
                   option_chain:str,
-                  remove_work_folder:str=None):
+                  remove_work_folder:Path=None):
     """
     Run fmriprep with parameters.
 
@@ -107,10 +70,9 @@ def run_fmri_prep(subject:str,
                                  --participant-label={subject}
                                  --cifti-output={cifti_out_res}
                                  --use-syn-sdc=warn
-                                 --clean-workdir
                                  {option_chain}
-                                 {bids_path.as_posix()}
-                                 {derivs_path.as_posix()}
+                                 {str(bids_path)}
+                                 {str(derivs_path)}
                                  participant""")
     try:
         command_str = " ".join(helper_command)
@@ -128,7 +90,6 @@ def run_fmri_prep(subject:str,
     
 
 
-
 def main():
     parser = OceanParser(
             prog="oceanproc", 
@@ -144,11 +105,11 @@ def main():
                         help="The identifier of the subject to preprocess")
     session_arguments.add_argument("--session", "-se", required=True,
                         help="The identifier of the session to preprocess")
-    session_arguments.add_argument("--source_data", "-sd", required=True,
+    session_arguments.add_argument("--source_data", "-sd", type=Path, required=True,
                         help="The path to the directory containing the raw DICOM files for this subject and session")
-    session_arguments.add_argument("--xml_path", "-x", required=True,
+    session_arguments.add_argument("--xml_path", "-x", type=Path, required=True,
                         help="The path to the xml file for this subject and session")
-    session_arguments.add_argument("--fs_subjects_dir", "-fs", 
+    session_arguments.add_argument("--fs_subjects_dir", "-fs", type=Path,
                         help="The path to the directory that contains previous FreeSurfer outputs/derivatives to use for fMRIPrep. If empty, this is the path where new FreeSurfer outputs will be stored.")
     session_arguments.add_argument("--skip_dcm2bids", action="store_true",
                         help="Flag to indicate that dcm2bids does not need to be run for this subject and session")
@@ -158,16 +119,16 @@ def main():
                         help="Flag to indicate that fMRIPrep does not need to be run for this subject and session")
     session_arguments.add_argument("--skip_event_files", action="store_true",
                         help="Flag to indicate that the making of a long formatted events file is not needed for the subject and session")
-    session_arguments.add_argument("--export_args", "-ea", 
+    session_arguments.add_argument("--export_args", "-ea", type=Path,
                         help="Path to a file to save the current configuration arguments")
     session_arguments.add_argument("--keep_work_dir", action="store_true",
                         help="Flag to stop the deletion of the fMRIPrep working directory")
 
-    config_arguments.add_argument("--bids_path", "-b",  required=True,
+    config_arguments.add_argument("--bids_path", "-b", type=Path, required=True,
                         help="The path to the directory containing the raw nifti data for all subjects, in BIDS format") 
-    config_arguments.add_argument("--bids_config", "-c", required=True,
+    config_arguments.add_argument("--bids_config", "-c", type=Path, required=True,
                         help="The path to the dcm2bids config file to use for this subject and session")
-    config_arguments.add_argument("--nordic_config", "-n", 
+    config_arguments.add_argument("--nordic_config", "-n", type=Path,
                         help="The path to the second dcm2bids config file to use for this subject and session. This implies that the session contains NORDIC data")
     config_arguments.add_argument("--nifti", action=argparse.BooleanOptionalAction,
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")
@@ -179,11 +140,11 @@ def main():
                         help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
     config_arguments.add_argument("--leave_workdir", action="store_true",
                         help="Don't clean up working directory after fmriprep has finished. We can do this since we're creating a new working directory for every instance of fmriprep (this option should be used as a debugging tool).")
-    config_arguments.add_argument("--derivs_path", "-d", required=True,
+    config_arguments.add_argument("--derivs_path", "-d", type=Path, required=True,
                         help="The path to the BIDS formated derivatives directory for this subject")
-    config_arguments.add_argument("--work_dir", "-w", required=True,
+    config_arguments.add_argument("--work_dir", "-w", type=Path, required=True,
                         help="The path to the working directory used to store intermediate files")
-    config_arguments.add_argument("--fs_license", "-l", required=True,
+    config_arguments.add_argument("--fs_license", "-l", type=Path, required=True,
                         help="The path to the license file for the local installation of FreeSurfer")
     
     args = parser.parse_args()
@@ -202,11 +163,11 @@ def main():
                     continue
                 opts_to_save[a.option_strings[0]] = all_opts[a.dest]
         with open(args.export_args, "w") as f:
-            if args.export_args.endswith(".json"):
+            if args.export_args.suffix == ".json":
                 f.write(json.dumps(opts_to_save, indent=4))
             else:
                 for k,v in opts_to_save.items():
-                    f.write(make_option(k,v)+"\n")
+                    f.write(f"{k}{make_option(value=v)}\n")
 
 
     ##### Convert raw DICOMs to BIDS structure #####
@@ -220,11 +181,10 @@ def main():
             bids_config=args.bids_config,
             nordic_config=args.nordic_config,
             nifti=args.nifti
-            # nordic=args.nordic
         )
 
     ##### Pair field maps to functional runs #####
-    bids_session_dir = f"{args.bids_path}/sub-{args.subject}/ses-{args.session}"
+    bids_session_dir = args.bids_path / f"sub-{args.subject}/ses-{args.session}"
 
     if not args.anat_only and not args.skip_fmap_pairing:
         map_fmap_to_func(
@@ -237,13 +197,13 @@ def main():
     all_opts = dict(args._get_kwargs())
 
     fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation", "fd_spike_threshold", "anat_only"}
-    fmrip_opt_chain = " ".join([make_option(fo, all_opts[fo], "=") for fo in fmrip_options if fo in all_opts])
+    fmrip_opt_chain = " ".join([make_option(all_opts[fo], key=fo, delimeter="=", convert_underscore=True) for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
         run_fmri_prep(
             subject=args.subject, 
-            bids_path=Path(args.bids_path),
-            derivs_path=Path(args.derivs_path),
+            bids_path=args.bids_path,
+            derivs_path=args.derivs_path,
             option_chain=fmrip_opt_chain,
             remove_work_folder=None if args.keep_work_dir else args.work_dir
         )

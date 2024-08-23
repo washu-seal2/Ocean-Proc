@@ -30,7 +30,7 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     print("####### Removing the scans marked 'unusable' #######")
 
     if not xml_file.exists():
-        exit_program_early(f"Path {xml_file} does not exist.")
+        exit_program_early(f"Path {str(xml_file)} does not exist.")
         
     tree = et.parse(xml_file)
     prefix = "{" + str(tree.getroot()).split("{")[-1].split("}")[0] + "}"
@@ -58,8 +58,9 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     for p_json, p_nii in zip(json_paths, nii_paths):
         j = json.load(p_json.open()) 
         if quality_pairs[j["SeriesNumber"]] == "unusable":
-            os.remove(p_json.as_posix()) 
-            os.remove(p_nii.as_posix()) 
+            print(f"  Removing series {j['SeriesNumber']}: NIFTI:{p_nii}, JSON:{p_json}")
+            os.remove(p_json) 
+            os.remove(p_nii) 
 
 
 def run_dcm2bids(source_dir:Path, 
@@ -88,25 +89,24 @@ def run_dcm2bids(source_dir:Path,
     :type nifti: bool
     :raise RuntimeError: If dcm2bids exits with a non-zero exit code.
     """
-    if not source_dir.exists():
-        exit_program_early(f"Path {source_dir} does not exist.")
-    elif not bids_output_dir.exists():
-        exit_program_early(f"Path {bids_output_dir} does not exist.")
-    elif not config_file.exists():
-        exit_program_early(f"Path {config_file} does not exist.")
-    elif shutil.which('dcm2bids') == None:
-        exit_program_early("Cannot locate program 'dcm2bids', make sure it is in your PATH.")
 
+    for p in [source_dir, bids_output_dir, config_file]:
+        if not p.exists():
+            exit_program_early(f"Path {str(p)} does not exist.")
+
+    if shutil.which('dcm2bids') == None:
+            exit_program_early("Cannot locate program 'dcm2bids', make sure it is in your PATH.")
+    
+    tmp_path = bids_output_dir / f"tmp_dcm2bids/sub-{subject}_ses-{session}"
+    
     def clean_up():
         try:
-            tmp_path = f"{bids_output_dir.as_posix()}/tmp_dcm2bids/sub-{subject}_ses-{session}"
             shutil.rmtree(tmp_path)
         except Exception as e:
             print(e)
             print(f"There was a problem deleting the temporary directory at {tmp_path}")
-                        
-
-    if os.path.isdir(path_that_exists := f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}"):
+    
+    if (path_that_exists := bids_output_dir/f"sub-{subject}/ses-{session}").exists():
         ans = prompt_user_continue(dedent(f"""
                                     A raw data bids path for this subject and session already exists. 
                                     Would you like to delete its contents and rerun dcm2bids? If not,
@@ -116,15 +116,23 @@ def run_dcm2bids(source_dir:Path,
             shutil.rmtree(path_that_exists)
         else:
             return
-           
+        
+    nifti_path = None    
+    if not nifti:
+        print("####### Converting DICOM files into NIFTI #######")
+        run_dcm2niix(source_dir=source_dir, 
+                     tmp_nifti_dir=tmp_path)
+        nifti_path = tmp_path
+    else:
+        nifti_path = source_dir
     helper_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                  --bids_validate 
-                                 {'--skip_dcm2niix' if nifti else ''}
-                                 -d {source_dir.as_posix()} 
+                                 --skip_dcm2niix
+                                 -d {str(nifti_path)} 
                                  -p {subject} 
                                  -s {session} 
-                                 -c {config_file.as_posix()} 
-                                 -o {bids_output_dir.as_posix()}
+                                 -c {str(config_file)} 
+                                 -o {str(bids_output_dir)}
                                  """)
     try:
         print("####### Running first round of Dcm2Bids ########")
@@ -142,12 +150,12 @@ def run_dcm2bids(source_dir:Path,
 
             nordic_run_command = shlex.split(f"""{shutil.which('dcm2bids')} 
                                             --bids_validate
-                                             {'--skip_dcm2niix' if nifti else ''}
-                                            -d {source_dir.as_posix()} 
+                                            --skip_dcm2niix
+                                            -d {str(nifti_path)} 
                                             -p {subject}
                                             -s {session}
-                                            -c {nordic_config.as_posix()}
-                                            -o {bids_output_dir.as_posix()}
+                                            -c {str(nordic_config)}
+                                            -o {str(bids_output_dir)}
                                             """)
             print("####### Running second round of Dcm2Bids ########")
             # subprocess.check_output(nordic_run_command)
@@ -159,7 +167,7 @@ def run_dcm2bids(source_dir:Path,
                     raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
                 
             # Clean up NORDIC files
-            separate_nordic_files = glob(f"{bids_output_dir.as_posix()}/sub-{subject}/ses-{session}/func/*_part-*")
+            separate_nordic_files = glob(f"{str(bids_output_dir)}/sub-{subject}/ses-{session}/func/*_part-*")
             for f in separate_nordic_files:
                 os.remove(f)
 
@@ -168,15 +176,62 @@ def run_dcm2bids(source_dir:Path,
         exit_program_early("Problem running 'dcm2bids'.", clean_up)
     clean_up()
 
+
+def run_dcm2niix(source_dir:Path, 
+                 tmp_nifti_dir:Path,
+                 clean_up_func=None):
+    """
+    Run dcm2niix with the given input and output directories.
+
+    :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
+    :type source_dir: pathlib.Path
+    :param tmp_nifti_dir: Path to the directory to store the newly made NIFTI files
+    :type tmp_nifti_dir: pathlib.Path
+    """
+    
+    if not source_dir.exists():
+        exit_program_early(f"Path {source_dir} does not exist.")
+    elif shutil.which('dcm2niix') == None:
+        exit_program_early("Cannot locate program 'dcm2niix', make sure it is in your PATH.")
+
+    if not tmp_nifti_dir.exists():
+        tmp_nifti_dir.mkdir(parents=True)
+    
+    helper_command = shlex.split(f"""{shutil.which('dcm2niix')} 
+                                -b y
+                                -ba y
+                                -z y
+                                -f %3s_%f_%p_%t
+                                -o {str(tmp_nifti_dir)}
+                                {str(source_dir)}
+                                """)
+    try:
+        with subprocess.Popen(helper_command, stdout=subprocess.PIPE) as p:
+            while p.poll() == None:
+                text = p.stdout.read1().decode("utf-8", "ignore")
+                print(text, end="", flush=True)
+            if p.poll() != 0:
+                raise RuntimeError("'dcm2bniix' has ended with a non-zero exit code.")
+    except RuntimeError or subprocess.CalledProcessError as e:
+        print(e)
+        exit_program_early("Problem running 'dcm2niix'.", 
+                           exit_func=clean_up_func if clean_up_func else None)
         
+    # Delete extra files from short runs
+    for f in tmp_nifti_dir.glob("*a.nii.gz"):
+        os.remove(f)
+    for f in tmp_nifti_dir.glob("*a.json"):
+        os.remove(f)
+    
+    
 
 def dicom_to_bids(subject:str, 
                   session:str, 
-                  source_dir:str, 
-                  bids_dir:str, 
-                  xml_path:str, 
-                  bids_config:str, 
-                  nordic_config:str=None,
+                  source_dir:Path, 
+                  bids_dir:Path, 
+                  xml_path:Path, 
+                  bids_config:Path,
+                  nordic_config:Path=None,
                   nifti=False):
     
     """
@@ -187,24 +242,16 @@ def dicom_to_bids(subject:str,
     :param session: Session name (ex. 'ses-01', session would be '01')
     :type session: str
     :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
-    :type source_dir: str
+    :type source_dir: pathlib.Path
     :param bids_dir: Path to the bids directory to store the newly made NIFTI files
-    :type bids_dir: str
+    :type bids_dir: pathlib.Path
     :param bids_config: Path to dcm2bids config file, which maps raw sourcedata to BIDS-compliant counterpart
-    :type bids_config: str
+    :type bids_config: pathlib.Path
     :param nordic_config: Path to second dcm2bids config file, needed for additional post processing if NORDIC data that one BIDS config file can't handle.
-    :type nordic_config: str
+    :type nordic_config: pathlib.Path
     :param nifti: Specify that the soure directory contains NIFTI files instead of DICOM
     :type nifti: bool
     """
-
-
-    source_dir = Path(source_dir)
-    bids_dir = Path(bids_dir)
-    xml_path = Path(xml_path)
-    bids_config = Path(bids_config)
-    if nordic_config:
-        nordic_config = Path(nordic_config)
 
     run_dcm2bids(source_dir, bids_dir, bids_config, subject, session, nordic_config, nifti)
     remove_unusable_runs(xml_path, bids_dir, subject)
@@ -218,15 +265,15 @@ if __name__ == "__main__":
                         help="Subject ID")
     parser.add_argument("-se","--session", required=True, 
                         help="Session ID")
-    parser.add_argument("-sd", "--source_data", required=True, 
+    parser.add_argument("-sd", "--source_data", type=Path, required=True,
                         help="Path to directory containing this session's DICOM files")
-    parser.add_argument("-b", "--bids_path", required=True, 
+    parser.add_argument("-b", "--bids_path", type=Path, required=True, 
                         help="Path to the bids directory to store the newly made NIFTI files")
-    parser.add_argument("-x", "--xml_path", required=True, 
+    parser.add_argument("-x", "--xml_path", type=Path, required=True, 
                         help="Path to this session's XML file")
-    parser.add_argument("-c", "--bids_config", required=True, 
+    parser.add_argument("-c", "--bids_config", type=Path, required=True, 
                         help="dcm2bids config json file")
-    parser.add_argument("-n", "--nordic_config", 
+    parser.add_argument("-n", "--nordic_config", type=Path,
                         help="Second dcm2bids config json file used for NORDIC processing")
     parser.add_argument("--nifti", action='store_true', 
                         help="Flag to specify that the source directory contains files of type NIFTI (.nii/.jsons) instead of DICOM")

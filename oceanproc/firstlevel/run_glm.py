@@ -17,7 +17,7 @@ import json
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
-from ..utils import exit_program_early
+from ..utils import exit_program_early, make_option
 import logging
 import datetime
 from textwrap import dedent
@@ -31,6 +31,7 @@ TODO:
     * Function documentation and testing
 
 """
+
 
 def make_option(value, key=None, delimeter=" "):
     """
@@ -502,11 +503,11 @@ def main():
     session_arguments = parser.add_argument_group("Session Specific")
     config_arguments = parser.add_argument_group("Configuration Arguments", "These arguments are saved to a file if the '--export_args' option is used")
 
-    session_arguments.add_argument("--subject", "-su",
+    session_arguments.add_argument("--subject", "-su", required=True,
                         help="The subject ID")
-    session_arguments.add_argument("--session", "-se",
+    session_arguments.add_argument("--session", "-se", required=True,
                         help="The session ID")
-    session_arguments.add_argument("--export_args", "-ea", 
+    session_arguments.add_argument("--export_args", "-ea", type=Path,
                         help="Path to a file to save the current arguments.")
     session_arguments.add_argument("--debug", action="store_true",
                         help="Use this flag to save intermediate outputs for a chance to debug inputs")
@@ -592,7 +593,7 @@ def main():
                     continue
                 opts_to_save[a.option_strings[0]] = all_opts[a.dest]
         with open(args.export_args, "w") as f:
-            if args.export_args.endswith(".json"):
+            if args.export_args.suffix == ".json":
                 f.write(json.dumps(opts_to_save, indent=4))
             else:
                 for k,v in opts_to_save.items():
@@ -622,14 +623,6 @@ def main():
     # log the arguments used for this run
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f"{k} : {v}")
-
-    # hrf_model = (args.peak_time, args.undershoot_dur) if hasattr(args, "peak_time") else None
-    # hrf_vars = args.hrf_vars if hasattr(args, "hrf_vars") and args.hrf_vars != "all" else None
-
-    # fir_model = args.num_frames if hasattr(args, "num_frames") else None
-    # fir_vars = args.fir_vars if hasattr(args, "fir_vars") and args.fir_vars != "all" else None
-
-    # model_type = "MixedModel" if fir_model and hrf_model else "FIR" if fir_model else "HRF" 
         
     model_type = "MixedModel" if args.fir and args.hrf else "FIR" if args.fir else "HRF" 
     file_map_list = []
