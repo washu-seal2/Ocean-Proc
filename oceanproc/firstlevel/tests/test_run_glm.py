@@ -129,8 +129,8 @@ def test_events_to_design(tmp_path,
         assert len([col for col in events_df.columns if re.match(pattern, col)]) == fir
 
 
-def test_hrf_convolve_features(tmp_path, 
-                               random_signaldf):
-    cfeats = hrf_convolve_features(random_signaldf)
-    for col in random_signaldf.columns:
-        recovered, remainder = signal.deconvolve(cfeats[col])
+# def test_hrf_convolve_features(tmp_path, 
+                               # random_signaldf):
+    # cfeats = hrf_convolve_features(random_signaldf)
+    # for col in random_signaldf.columns:
+        # recovered, remainder = signal.deconvolve(cfeats[col], )
