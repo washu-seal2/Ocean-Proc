@@ -150,7 +150,7 @@ def demean_detrend(func_data: npt.ArrayLike) -> np.ndarray:
     return data_dd
 
 
-def hrf(time, time_to_peak=5, undershoot_dur=12):
+def create_hrf(time, time_to_peak=5, undershoot_dur=12):
     """
     This function creates a hemodynamic response function timeseries.
 
@@ -175,7 +175,12 @@ def hrf(time, time_to_peak=5, undershoot_dur=12):
     return hrf_timeseries
 
 
-def hrf_convolve_features(features, column_names='all', time_col='index', units='s', time_to_peak=5, undershoot_dur=12):
+def hrf_convolve_features(features: pd.DataFrame,
+                          column_names: list = None,
+                          time_col: str = 'index',
+                          units: str = 's',
+                          time_to_peak: int = 5,
+                          undershoot_dur: int = 12):
     """
     This function convolves a hemodynamic response function with each column in a timeseries dataframe.
 
@@ -184,7 +189,7 @@ def hrf_convolve_features(features, column_names='all', time_col='index', units=
     features: DataFrame
         A Pandas dataframe with the feature signals to convolve.
     column_names: list
-        List of columns names to use.  Default is "all"
+        List of columns names to use; if it is None, use all columns. Default is None.
     time_col: str
         The name of the time column to use if not the index. Default is "index".
     units: str
@@ -199,7 +204,7 @@ def hrf_convolve_features(features, column_names='all', time_col='index', units=
     convolved_features: DataFrame
         The HRF-convolved feature timeseries
     """
-    if column_names == 'all':
+    if not column_names:
         column_names = features.columns
 
     if time_col == 'index':
@@ -219,7 +224,7 @@ def hrf_convolve_features(features, column_names='all', time_col='index', units=
         time = features.index.to_numpy()
 
     convolved_features = pd.DataFrame(index=time)
-    hrf_sig = hrf(time, time_to_peak=time_to_peak, undershoot_dur=undershoot_dur)
+    hrf_sig = create_hrf(time, time_to_peak=time_to_peak, undershoot_dur=undershoot_dur)
     for a in column_names:
         convolved_features[a] = np.convolve(features[a], hrf_sig)[:len(time)]
 
@@ -243,10 +248,10 @@ def find_nearest(array, value):
     return(array[idx])
 
 
-def make_noise_ts(confounds_file: str, 
-                  confounds_columns: list, 
-                  demean: bool = False, 
-                  linear_trend: bool = False, 
+def make_noise_ts(confounds_file: str,
+                  confounds_columns: list,
+                  demean: bool = False,
+                  linear_trend: bool = False,
                   spike_threshold: float = None,
                   volterra_expansion: int = None,
                   volterra_columns: list = None):
@@ -289,21 +294,79 @@ def make_noise_ts(confounds_file: str,
     return nuisance
 
 
-def events_to_design(func_data: npt.ArrayLike, 
-                     tr: float, 
-                     event_file: str | Path, 
-                     fir: int = None, 
-                     hrf: tuple[int] = None, 
-                     fir_list: list[str] = None,  
+#TODO: maybe write a validator for the input task file?
+def events_to_design(func_data: npt.ArrayLike,
+                     tr: float,
+                     event_file: str | Path,
+                     fir: int = None,
+                     hrf: tuple[int] = None,
+                     fir_list: list[str] = None,
                      hrf_list: list[str] = None,
-                     design_file: str = None,
+                     output_path: str = None,
                      logger = None):
+    """
+    Builds an initial design matrix from an event file. You can 
+    convolve specified event types with an hemodynamic response function
+    (HRF).
+
+    The events are expected to be in a .tsv file, with the following columns:
+
+    trial_type: a string representing the unique trial type. oceanfla gives you the 
+        freedom to arrange these trial types in any way you want; they can represent 
+        events on their own, combinations of concurrent events, etc. 
+    onset: the onset time of an event
+    duration: the duration of an event
+    
+    Parameters
+    ----------
+    func_data: npt.ArrayLike
+        A numpy array-like object representing functional data
+    tr: float
+        A float representing repetition time, the rate at 
+        which single brain images are captured following 
+        a radio frequency (RF) pulse
+    event_file: str | Path
+        .tsv file containing information about events, their onsets, and their durations (view the formatting of it above)
+    fir: int = None
+        An int denoting the order of an FIR filter
+    hrf: tuple[int] = None
+        A 2-length tuple, where hrf[0] denotes the time to the peak of an HRF, and hrf[1] denotes the duration of its "undershoot" after the peak.
+    fir_list: list[str] = None
+        A list of column names denoting which columns should have an FIR filter applied.
+    hrf_list: list[str] = None
+        A list of column names denoting which columns should be convolved with the HRF function defined in the hrf tuple.
+
+    Returns
+    -------
+    (events_long, conditions): tuple
+        A tuple containing the DataFrame with filtered/convolved columns and a list of unique trial names.
+    """
+    
+    if tr and tr <= 0:
+        raise ValueError(f"tr must be greater than 0. Current tr: {tr}")
+    if fir and fir <= 0:
+        raise ValueError(f"fir value must be greater than 0. Current fir: {fir}")
+    if hrf and not (len(hrf) == 2 and hrf[0] > 0 and hrf[1] > 0):
+        raise ValueError(f"hrf tuple must contain two integers greater than 0. Current hrf tuple: {hrf}")
+    # If both FIR and HRF are specified, we should have at least one list 
+    # of columns for one of the categories specified.
+    if (fir and hrf) and not (fir_list or hrf_list): 
+        raise RuntimeError("Both FIR and HRF were specified, but you need to specify at least one list of columns (fir_list or hrf_list)")
+    # fir_list and hrf_list must not have overlapping columns
+    if (fir_list and hrf_list) and not set(fir_list).isdisjoint(hrf_list):
+        raise RuntimeError("Both FIR and HRF lists of columns were specified, but they overlap.")
     duration = tr * func_data.shape[0]
     events_df = pd.read_csv(event_file, index_col=None, delimiter='\t')
-    conditions = [s for s in np.unique(events_df.trial_type)]
+    conditions = [s for s in np.unique(events_df.trial_type)] # unique trial types
     events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0, duration, tr))
     residual_conditions = conditions
-
+    if (fir and hrf) and (bool(fir_list) ^ bool(hrf_list)): # Create other list if only one is specified
+        if fir_list:
+            hrf_list = [c for c in residual_conditions if c not in fir_list]
+        elif hrf_list:
+            fir_list = [c for c in residual_conditions if c not in hrf_list]
+        assert set(hrf_list).isdisjoint(fir_list)
+        
     for e in events_df.index:
         i = find_nearest(events_long.index, events_df.loc[e,'onset'])
         events_long.loc[i, events_df.loc[e,'trial_type']] = 1
@@ -346,17 +409,17 @@ def events_to_design(func_data: npt.ArrayLike,
                            and will not be included in the design matrix: {residual_conditions}"""))
         events_long = events_long.drop(columns=residual_conditions)
 
-    if design_file:
-        logger.debug(f" saving events matrix to file: {design_file}")
-        events_long.to_csv(design_file)
+    if output_path:
+        logger.debug(f" saving events matrix to file: {output_path}")
+        events_long.to_csv(output_path)
     
     return (events_long, conditions)
 
 
 
-def bandpass_filter(func_data: npt.ArrayLike, 
-                    tr: float, 
-                    high_cut: float = 0.1, 
+def bandpass_filter(func_data: npt.ArrayLike,
+                    tr: float,
+                    high_cut: float = 0.1,
                     low_cut: float = 0.008,
                     order: int = 2 ):
     fs = 1/tr
@@ -375,7 +438,9 @@ def bandpass_filter(func_data: npt.ArrayLike,
 """
 REGRESS OUT NUISANCE VARIABLES
 """
-def nuisance_regression(func_data: npt.ArrayLike, noise_matrix: pd.DataFrame, fd_thresh: float = None):
+def nuisance_regression(func_data: npt.ArrayLike,
+                        noise_matrix: pd.DataFrame,
+                        fd_thresh: float = None):
     ss = StandardScaler()
     # designmat = ss.fit_transform(noise_matrix[noise_matrix["framewise_displacement"]<fd_thresh].to_numpy())
     designmat = ss.fit_transform(noise_matrix.to_numpy().astype(float))
@@ -390,7 +455,9 @@ def nuisance_regression(func_data: npt.ArrayLike, noise_matrix: pd.DataFrame, fd
 """
 COMBINE DESIGN MATRICES 
 """
-def create_final_design(data_list: list[npt.ArrayLike], design_list: list[pd.DataFrame], noise_list: list[pd.DataFrame] = None):
+def create_final_design(data_list: list[npt.ArrayLike],
+                        design_list: list[pd.DataFrame],
+                        noise_list: list[pd.DataFrame] = None):
     num_runs = len(data_list)
     assert num_runs == len(design_list), "There should be the same number of design matrices and functional runs"
     
@@ -413,7 +480,8 @@ def create_final_design(data_list: list[npt.ArrayLike], design_list: list[pd.Dat
 
 
 # MODIFY FUNCTION
-def massuni_linGLM(func_data: npt.ArrayLike, design_matrix: pd.DataFrame):
+def massuni_linGLM(func_data: npt.ArrayLike,
+                   design_matrix: pd.DataFrame):
     ss = StandardScaler()
     design_matrix = ss.fit_transform(design_matrix.to_numpy())
     neuro_data = ss.fit_transform(func_data)
@@ -425,7 +493,6 @@ def massuni_linGLM(func_data: npt.ArrayLike, design_matrix: pd.DataFrame):
 
 
 def main():
-
     parser = OceanParser(
         prog="oceanfla",
         description="Ocean Labs first level analysis",
@@ -623,7 +690,7 @@ def main():
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
                 logger=logger,
-                design_file=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
+                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
             )
 
             logger.info(" reading confounds file and creating nuisance matrix")
