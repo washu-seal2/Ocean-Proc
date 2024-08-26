@@ -65,9 +65,9 @@ def make_option(value, key: str=None, delimeter: str=" ", convert_underscore: bo
         key = key.replace("_", "-")
     if not value:
         return ""
-    if type(value) == bool and value:
+    elif type(value) == bool and value:
         second_part = " "
-    if type(value) == list:
+    elif type(value) == list:
         second_part = f"{delimeter}{' '.join([str(v) for v in value])}"
     else:
         second_part = f"{delimeter}{str(value)}"

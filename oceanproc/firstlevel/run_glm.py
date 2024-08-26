@@ -31,6 +31,10 @@ TODO:
     * Function documentation and testing
 
 """
+logging.basicConfig(level=logging.INFO,
+                    handlers=[logging.StreamHandler(stream=sys.stdout)])
+logger = logging.getLogger()
+
 
 
 def load_data(func_file: str|Path,
@@ -272,8 +276,7 @@ def events_to_design(func_data: npt.ArrayLike,
                      hrf: tuple[int] = None,
                      fir_list: list[str] = None,
                      hrf_list: list[str] = None,
-                     output_path: str = None,
-                     logger = None):
+                     output_path: str = None):
     """
     Builds an initial design matrix from an event file. You can 
     convolve specified event types with an hemodynamic response function
@@ -458,7 +461,8 @@ def nuisance_regression(func_data: npt.ArrayLike,
 
 def create_final_design(data_list: list[npt.ArrayLike],
                         design_list: list[pd.DataFrame],
-                        noise_list: list[pd.DataFrame] = None):
+                        noise_list: list[pd.DataFrame] = None,
+                        exclude_global_mean: bool = False):
     """
     Creates a final, concatenated design matrix for all functional runs in a session
 
@@ -471,6 +475,8 @@ def create_final_design(data_list: list[npt.ArrayLike],
         List of created design matrices corresponding to each respective BOLD run in data_list
     noise_list: list[pd.DataFrame]
         List of DataFrame objects corresponding to models of noise for each respective BOLD run in data_list
+    exclude_global_mean: bool
+        Flag to indicate that a global mean should not be included into the final design matrix
 
     Returns
     -------
@@ -495,6 +501,8 @@ def create_final_design(data_list: list[npt.ArrayLike],
             design_list[i] = pd.concat([design_list[i].reset_index(drop=True), noise_df.reset_index(drop=True)], axis=1)
 
     final_design = pd.concat(design_list, axis=0, ignore_index=True).fillna(0)
+    if not exclude_global_mean:
+        final_design.loc[:, "global_mean"] = 1
     final_data = np.concat(data_list, axis=0)
     return (final_data, final_design)
 
@@ -575,6 +583,8 @@ def main():
     config_arguments.add_argument("--detrend_data", "-dd", action="store_true", 
                         help="""Flag to demean and detrend the data before modeling. The default is to include
                         a mean and trend line into the nuisance matrix instead.""")
+    config_arguments.add_argument("--no_global_mean", action="store_true",
+                        help="Flag to indicate that you do not want to include a global mean into the model.")
     high_motion_params = config_arguments.add_mutually_exclusive_group()
     high_motion_params.add_argument("--spike_regression", "-sr", action="store_true",
                         help="Flag to indicate that framewise displacement spike regression should be included in the nuisance matrix.")
@@ -642,13 +652,10 @@ def main():
     log_dir = args.output_dir.parent / "logs" 
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y_%I-%M%p')}.log"
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO,
-                        handlers=[
-                            logging.FileHandler(log_path)
-                        ])
-    sout_handler = logging.StreamHandler(stream=sys.stdout)
-    logger = logging.getLogger(__name__)
-    logger.addHandler(sout_handler)
+    log_file_handler = logging.FileHandler(log_path)
+    logger.addHandler(log_file_handler)
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
     logger.info("Starting oceanfla...")
     logger.info(f"Log will be stored at {log_path}")
 
@@ -825,7 +832,8 @@ def main():
         final_func_data, final_design_df = create_final_design(
             data_list=func_data_list,
             design_list=design_df_list,
-            noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None
+            noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None,
+            exclude_global_mean=args.no_global_mean
         )
         final_design_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}-final-design.csv"
         logger.info(f"saving the final design matrix to file: {final_design_filename}")
