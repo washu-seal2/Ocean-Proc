@@ -138,8 +138,6 @@ def main():
                         help="framewise displacement threshold (in mm) to determine outlier framee (Default is 0.9).")
     config_arguments.add_argument("--skip_bids_validation", action="store_true",
                         help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
-    config_arguments.add_argument("--leave_workdir", action="store_true",
-                        help="Don't clean up working directory after fmriprep has finished. We can do this since we're creating a new working directory for every instance of fmriprep (this option should be used as a debugging tool).")
     config_arguments.add_argument("--derivs_path", "-d", type=Path, required=True,
                         help="The path to the BIDS formated derivatives directory for this subject")
     config_arguments.add_argument("--work_dir", "-w", type=Path, required=True,
