@@ -32,7 +32,10 @@ TODO:
 
 """
 
-def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False) -> np.ndarray:
+
+def load_data(func_file: str|Path,
+              brain_mask: str = None,
+              need_tr: bool = False) -> np.ndarray:
     tr = None
     func_file = str(func_file)
     if need_tr:
@@ -50,10 +53,13 @@ def load_data(func_file: str|Path, brain_mask: str = None, need_tr: bool = False
             return (nmask.apply_mask(func_file, brain_mask), tr, None)
         else:
             raise Exception("Volumetric data must also have an accompanying brain mask")
-            # return None
-        
+            # return None 
 
-def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None, header: nib.cifti2.cifti2.Cifti2Header = None):
+
+def create_image(data: npt.ArrayLike,
+                 brain_mask: str = None,
+                 tr: float = None,
+                 header: nib.cifti2.cifti2.Cifti2Header = None):
     img = None
     suffix = ".nii"
     d32k = 32492
@@ -90,11 +96,25 @@ def create_image(data: npt.ArrayLike, brain_mask: str = None, tr: float = None, 
 
 
 def demean_detrend(func_data: npt.ArrayLike) -> np.ndarray:
+    """
+    Subtracts the mean and a least-squares-fit line from each timepoint at every vertex/voxel.
+    
+    Parameters
+    ----------
+
+    func_data: npt.ArrayLike 
+        array containing functional timeseries data
+
+    Returns
+    -------
+    data_dd: np.ndarray
+        A demeaned/detrended copy of the input array
+    """
     data_dd = signal.detrend(func_data, axis=0, type = 'linear')
     return data_dd
 
 
-def hrf(time, time_to_peak=5, undershoot_dur=12):
+def create_hrf(time, time_to_peak=5, undershoot_dur=12):
     """
     This function creates a hemodynamic response function timeseries.
 
@@ -119,7 +139,12 @@ def hrf(time, time_to_peak=5, undershoot_dur=12):
     return hrf_timeseries
 
 
-def hrf_convolve_features(features, column_names='all', time_col='index', units='s', time_to_peak=5, undershoot_dur=12):
+def hrf_convolve_features(features: pd.DataFrame,
+                          column_names: list = None,
+                          time_col: str = 'index',
+                          units: str = 's',
+                          time_to_peak: int = 5,
+                          undershoot_dur: int = 12):
     """
     This function convolves a hemodynamic response function with each column in a timeseries dataframe.
 
@@ -128,7 +153,7 @@ def hrf_convolve_features(features, column_names='all', time_col='index', units=
     features: DataFrame
         A Pandas dataframe with the feature signals to convolve.
     column_names: list
-        List of columns names to use.  Default is "all"
+        List of columns names to use; if it is None, use all columns. Default is None.
     time_col: str
         The name of the time column to use if not the index. Default is "index".
     units: str
@@ -143,7 +168,7 @@ def hrf_convolve_features(features, column_names='all', time_col='index', units=
     convolved_features: DataFrame
         The HRF-convolved feature timeseries
     """
-    if column_names == 'all':
+    if not column_names:
         column_names = features.columns
 
     if time_col == 'index':
@@ -163,7 +188,7 @@ def hrf_convolve_features(features, column_names='all', time_col='index', units=
         time = features.index.to_numpy()
 
     convolved_features = pd.DataFrame(index=time)
-    hrf_sig = hrf(time, time_to_peak=time_to_peak, undershoot_dur=undershoot_dur)
+    hrf_sig = create_hrf(time, time_to_peak=time_to_peak, undershoot_dur=undershoot_dur)
     for a in column_names:
         convolved_features[a] = np.convolve(features[a], hrf_sig)[:len(time)]
 
@@ -187,21 +212,21 @@ def find_nearest(array, value):
     return(array[idx])
 
 
-def make_noise_ts(confounds_file: str, 
-                  confound_columns: list, 
-                  demean: bool = False, 
-                  linear_trend: bool = False, 
+def make_noise_ts(confounds_file: str,
+                  confounds_columns: list,
+                  demean: bool = False,
+                  linear_trend: bool = False,
                   spike_threshold: float = None,
                   volterra_expansion: int = None,
-                  volterra_columns: list = None
-                  ):
-    fd = "framewise_displacement"
-    select_columns = set(confound_columns)
+                  volterra_columns: list = None):
+    select_columns = set(confounds_columns)
     if volterra_columns:
         select_columns.update(volterra_columns)
+    if spike_threshold:
+        select_columns.add(fd)
     nuisance = pd.read_csv(confounds_file, delimiter='\t').loc[:,list(select_columns)]
-    if fd in select_columns:
-        nuisance.loc[0, fd] = 0
+    if "framewise_displacement" in select_columns:
+        nuisance.loc[0, "framewise_displacement"] = 0
 
     if demean: 
         nuisance["mean"] = 1
@@ -209,38 +234,109 @@ def make_noise_ts(confounds_file: str,
     if linear_trend:
         nuisance["trend"] = np.arange(0, len(nuisance))
 
+    """
+    Add a new column denoting indices where a frame 
+    is censored for each row in the framewise_displacement
+    that is larger than spike_threshold.
+    """
     if spike_threshold:
         b = 0
         for a in range(len(nuisance)):
-            if nuisance.loc[a,fd] > spike_threshold:
+            if nuisance.loc[a,"framewise_displacement"] > spike_threshold:
                 nuisance[f"spike{b}"] = 0
                 nuisance.loc[a, f"spike{b}"] = 1
                 b += 1
+        if fd not in confound_columns:
+                nuisance.drop(columns=fd, inplace=True)
 
     if volterra_expansion and volterra_columns:
         for vc in volterra_columns:
             for lag in range(volterra_expansion):
                 nuisance.loc[:, f"{vc}_{lag+1}"] = nuisance.loc[:, vc].shift(lag+1)
         nuisance.fillna(0, inplace=True)
+    elif volterra_expansion:
+        raise RuntimeError("You must specify which columns you'd like to apply Volterra expansion to.")
+    elif volterra_columns:
+        raise RuntimeError("You must specify the lag applied in Volterra expansion.")
 
+    
+        
     return nuisance
 
 
-def events_to_design(func_data: npt.ArrayLike, 
-                     tr: float, 
-                     event_file: str, 
-                     fir: int = None, 
-                     hrf: tuple[int] = None, 
-                     fir_list: list[str] = None,  
+#TODO: maybe write a validator for the input task file?
+def events_to_design(func_data: npt.ArrayLike,
+                     tr: float,
+                     event_file: str | Path,
+                     fir: int = None,
+                     hrf: tuple[int] = None,
+                     fir_list: list[str] = None,
                      hrf_list: list[str] = None,
-                     design_file: str = None,
+                     output_path: str = None,
                      logger = None):
+    """
+    Builds an initial design matrix from an event file. You can 
+    convolve specified event types with an hemodynamic response function
+    (HRF).
+
+    The events are expected to be in a .tsv file, with the following columns:
+
+    trial_type: a string representing the unique trial type. oceanfla gives you the 
+        freedom to arrange these trial types in any way you want; they can represent 
+        events on their own, combinations of concurrent events, etc. 
+    onset: the onset time of an event
+    duration: the duration of an event
+    
+    Parameters
+    ----------
+    func_data: npt.ArrayLike
+        A numpy array-like object representing functional data
+    tr: float
+        A float representing repetition time, the rate at 
+        which single brain images are captured following 
+        a radio frequency (RF) pulse
+    event_file: str | Path
+        .tsv file containing information about events, their onsets, and their durations (view the formatting of it above)
+    fir: int = None
+        An int denoting the order of an FIR filter
+    hrf: tuple[int] = None
+        A 2-length tuple, where hrf[0] denotes the time to the peak of an HRF, and hrf[1] denotes the duration of its "undershoot" after the peak.
+    fir_list: list[str] = None
+        A list of column names denoting which columns should have an FIR filter applied.
+    hrf_list: list[str] = None
+        A list of column names denoting which columns should be convolved with the HRF function defined in the hrf tuple.
+
+    Returns
+    -------
+    (events_long, conditions): tuple
+        A tuple containing the DataFrame with filtered/convolved columns and a list of unique trial names.
+    """
+    
+    if tr and tr <= 0:
+        raise ValueError(f"tr must be greater than 0. Current tr: {tr}")
+    if fir and fir <= 0:
+        raise ValueError(f"fir value must be greater than 0. Current fir: {fir}")
+    if hrf and not (len(hrf) == 2 and hrf[0] > 0 and hrf[1] > 0):
+        raise ValueError(f"hrf tuple must contain two integers greater than 0. Current hrf tuple: {hrf}")
+    # If both FIR and HRF are specified, we should have at least one list 
+    # of columns for one of the categories specified.
+    if (fir and hrf) and not (fir_list or hrf_list): 
+        raise RuntimeError("Both FIR and HRF were specified, but you need to specify at least one list of columns (fir_list or hrf_list)")
+    # fir_list and hrf_list must not have overlapping columns
+    if (fir_list and hrf_list) and not set(fir_list).isdisjoint(hrf_list):
+        raise RuntimeError("Both FIR and HRF lists of columns were specified, but they overlap.")
     duration = tr * func_data.shape[0]
     events_df = pd.read_csv(event_file, index_col=None, delimiter='\t')
-    conditions = [s for s in np.unique(events_df.trial_type)]
+    conditions = [s for s in np.unique(events_df.trial_type)] # unique trial types
     events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0, duration, tr))
     residual_conditions = conditions
-
+    if (fir and hrf) and (bool(fir_list) ^ bool(hrf_list)): # Create other list if only one is specified
+        if fir_list:
+            hrf_list = [c for c in residual_conditions if c not in fir_list]
+        elif hrf_list:
+            fir_list = [c for c in residual_conditions if c not in hrf_list]
+        assert set(hrf_list).isdisjoint(fir_list)
+        
     for e in events_df.index:
         i = find_nearest(events_long.index, events_df.loc[e,'onset'])
         events_long.loc[i, events_df.loc[e,'trial_type']] = 1
@@ -283,19 +379,40 @@ def events_to_design(func_data: npt.ArrayLike,
                            and will not be included in the design matrix: {residual_conditions}"""))
         events_long = events_long.drop(columns=residual_conditions)
 
-    if design_file:
-        logger.debug(f" saving events matrix to file: {design_file}")
-        events_long.to_csv(design_file)
+    if output_path:
+        logger.debug(f" saving events matrix to file: {output_path}")
+        events_long.to_csv(output_path)
     
     return (events_long, conditions)
 
 
-
-def bandpass_filter(func_data: npt.ArrayLike, 
-                    tr: float, 
-                    high_cut: float = 0.1, 
+def bandpass_filter(func_data: npt.ArrayLike,
+                    tr: float,
+                    high_cut: float = 0.1,
                     low_cut: float = 0.008,
                     order: int = 2 ):
+    """
+    Apply a bandpass filter to the functional data, between two frequencies.
+
+    Parameters
+    ----------
+    func_data: npt.ArrayLike
+        A numpy array representing BOLD data
+    tr: float
+        Repetition time at the scanner
+    high_cut: float
+        Frequency above which the bandpass filter will be applied
+    low_cut: float
+        Frequency below which the bandpass filter will be applied
+    order: int
+        Order of the filter
+
+    Returns
+    -------
+
+    filtered_data: npt.ArrayLike
+        A numpy array representing BOLD data with the bandpass filter applied
+    """
     fs = 1/tr
     nyquist = 1/(2*tr)
     high = high_cut/nyquist
@@ -309,25 +426,58 @@ def bandpass_filter(func_data: npt.ArrayLike,
     return filtered_data
 
 
-"""
-REGRESS OUT NUISANCE VARIABLES
-"""
-def nuisance_regression(func_data: npt.ArrayLike, noise_matrix: pd.DataFrame, fd_thresh: float = None):
+def nuisance_regression(func_data: npt.ArrayLike,
+                        noise_matrix: pd.DataFrame,
+                        **kwargs):
+    """
+    Regresses out given nuisance variables from functional data
+
+    Parameters
+    ----------
+
+    func_data: npt.ArrayLike
+        A numpy array representing BOLD data
+    noise_matrix: pd.DataFrame
+        Matrix containing nuisance regressors
+
+    Returns
+    -------
+    
+    Returns a numpy array representing BOLD data with given nuisance regressors regressed away.
+    """
     ss = StandardScaler()
     # designmat = ss.fit_transform(noise_matrix[noise_matrix["framewise_displacement"]<fd_thresh].to_numpy())
     designmat = ss.fit_transform(noise_matrix.to_numpy().astype(float))
     neuro_data = ss.fit_transform(func_data)
-    inv_mat = np.linalg.pinv(designmat)
-    beta_data = np.dot(inv_mat, neuro_data)
+    inv_designmat = np.linalg.pinv(designmat)
+    beta_data = np.dot(inv_designmat, neuro_data)
     est_values = np.dot(designmat, beta_data)
 
     return func_data - est_values
 
 
-"""
-COMBINE DESIGN MATRICES 
-"""
-def create_final_design(data_list: list[npt.ArrayLike], design_list: list[pd.DataFrame], noise_list: list[pd.DataFrame] = None):
+def create_final_design(data_list: list[npt.ArrayLike],
+                        design_list: list[pd.DataFrame],
+                        noise_list: list[pd.DataFrame] = None):
+    """
+    Creates a final, concatenated design matrix for all functional runs in a session
+
+    Parameters
+    ----------
+
+    data_list: list[npt.ArrayLike]
+        List of numpy arrays representing BOLD data
+    design_list: list[pd.DataFrame]
+        List of created design matrices corresponding to each respective BOLD run in data_list
+    noise_list: list[pd.DataFrame]
+        List of DataFrame objects corresponding to models of noise for each respective BOLD run in data_list
+
+    Returns
+    -------
+
+    Returns a tuple containing the final concatenated data in index 0, and the 
+    final concatenated design matrix in index 1.
+    """
     num_runs = len(data_list)
     assert num_runs == len(design_list), "There should be the same number of design matrices and functional runs"
     
@@ -335,22 +485,33 @@ def create_final_design(data_list: list[npt.ArrayLike], design_list: list[pd.Dat
         assert num_runs == len(noise_list), "There should be the same number of noise matrices and functional runs"
         for i in range(num_runs):
             noise_df = noise_list[i]
+            assert len(noise_df) == len(design_list[i])
             rename_dict = dict()
             for c in noise_df.columns:
                 if ("trend" in c) or ("mean" in c) or ("spike" in c):
                     rename_dict[c] = f"run-{i+1}_{c}"
             noise_df = noise_df.rename(columns=rename_dict)
             noise_list[i] = noise_df
-            design_list[i] = pd.concat([design_list[i], noise_df], axis=1)
+            design_list[i] = pd.concat([design_list[i].reset_index(drop=True), noise_df.reset_index(drop=True)], axis=1)
 
-    final_design = pd.concat(design_list, axis=0, ignore_index=True)
+    final_design = pd.concat(design_list, axis=0, ignore_index=True).fillna(0)
     final_data = np.concat(data_list, axis=0)
     return (final_data, final_design)
 
 
+def massuni_linGLM(func_data: npt.ArrayLike,
+                   design_matrix: pd.DataFrame):
+    """
+    Compute the mass univariate GLM.
 
-# MODIFY FUNCTION
-def massuni_linGLM(func_data: npt.ArrayLike, design_matrix: pd.DataFrame):
+    Parameters
+    ----------
+
+    func_data: npt.ArrayLike
+        Numpy array representing BOLD data
+    design_matrix: pd.DataFrame
+        DataFrame representing a design matrix for the GLM
+    """
     ss = StandardScaler()
     design_matrix = ss.fit_transform(design_matrix.to_numpy())
     neuro_data = ss.fit_transform(func_data)
@@ -362,7 +523,6 @@ def massuni_linGLM(func_data: npt.ArrayLike, design_matrix: pd.DataFrame):
 
 
 def main():
-
     parser = OceanParser(
         prog="oceanfla",
         description="Ocean Labs first level analysis",
@@ -406,17 +566,20 @@ def main():
     config_arguments.add_argument("--hrf_vars", nargs="*",
                         help="""A list of the task regressors to apply this HRF model to. The default is to apply it to all regressors if no
                         value is specifed. A list must be specified if both types of models are being used""")
-    config_arguments.add_argument("--confounds", "-c", nargs="+", required=True,
+    config_arguments.add_argument("--confounds", "-c", nargs="+", default=[], 
                         help="A list of confounds to include from each confound timeseries tsv file.")
-    config_arguments.add_argument("--fd_threshold", "-fd", type=float, 
+    config_arguments.add_argument("--fd_threshold", "-fd", type=float, default=0.9,
                         help="The framewise displacement threshold used when censoring high-motion frames")
     config_arguments.add_argument("--repetition_time", "-tr", type=float,
                         help="Repetition time of the function runs. If it is not supplied, an attempt will be made to read it from the JSON sidecar file.")
     config_arguments.add_argument("--detrend_data", "-dd", action="store_true", 
                         help="""Flag to demean and detrend the data before modeling. The default is to include
                         a mean and trend line into the nuisance matrix instead.""")
-    config_arguments.add_argument("--spike_censoring", "-sc", action="store_true",
-                        help="Flag to indicate that framewise displacement spike censoring should be included in the nuisance matrix.")
+    high_motion_params = config_arguments.add_mutually_exclusive_group()
+    high_motion_params.add_argument("--spike_regression", "-sr", action="store_true",
+                        help="Flag to indicate that framewise displacement spike regression should be included in the nuisance matrix.")
+    high_motion_params.add_argument("--fd_censoring", "-fc", action="store_true",
+                        help="Flag to indicate that frames above the framewise displacement threshold should be censored before the glm.")
     config_arguments.add_argument("--nuisance_regression", "-nr", action="store_true",
                         help="Flag to indicate that nuisance regression should be performed before performing the GLM for event-related activation.")
     config_arguments.add_argument("--highpass", "-hp", type=float, nargs="?", const=0.008,
@@ -428,7 +591,7 @@ def main():
     config_arguments.add_argument("--volterra_lag", "-vl", nargs="?", const=2, type=int,
                         help="""The amount of frames to lag for a volterra expansion. If no value is specified
                         the default of 2 will be used. Must be specifed with the '--volterra_columns' option.""")
-    config_arguments.add_argument("--volterra_columns", "-vc", nargs="+",
+    config_arguments.add_argument("--volterra_columns", "-vc", nargs="+", default=[],
                         help="The confound columns to include in the expansion. Must be specifed with the '--volterra_lag' option.")
     
     args = parser.parse_args()
@@ -444,7 +607,7 @@ def main():
     if (args.bold_file_type == ".nii" or args.bold_file_type == ".nii.gz") and (not args.brain_mask or not args.brain_mask.is_file()):
         parser.error("If the bold file type is volumetric data, a valid '--brain_mask' option must also be supplied")
 
-    if (args.volterra_lag != None and args.volterra_columns == None) or (args.volterra_lag == None and args.volterra_columns != None):
+    if (args.volterra_lag and not args.volterra_columns) or (not args.volterra_lag and args.volterra_columns):
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
 
     ##### Export the current arguments to a file #####
@@ -552,16 +715,16 @@ def main():
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
                 logger=logger,
-                design_file=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
+                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
             )
 
             logger.info(" reading confounds file and creating nuisance matrix")
             noise_df = make_noise_ts(
                 confounds_file=run_map["confounds"],
-                confound_columns=args.confounds,
+                confounds_columns=args.confounds,
                 demean=(not args.detrend_data), 
                 linear_trend=(not args.detrend_data),
-                spike_threshold=args.fd_threshold if args.spike_censoring else None,
+                spike_threshold=args.fd_threshold if args.spike_regression else None,
                 volterra_expansion=args.volterra_lag,
                 volterra_columns=args.volterra_columns
             )
@@ -578,9 +741,7 @@ def main():
                 )
                 run_map["data_resids"] = func_data_residuals
                 func_data = func_data_residuals
-            else:
-                logger.info(" appending nuisance matrix to design matrix")
-                noise_df_list.append(noise_df)
+
 
             if args.debug:
                 nrimg, img_suffix = create_image(
@@ -596,22 +757,23 @@ def main():
                     nr_filename
                 )
 
-            # if args.bp_filter:
-            if args.lowpass or args.highpass:
-                logger.info(f" creating high motion mask using framewise displacement threshold of {args.fd_threshold}")
-                sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
+
+            sample_mask = np.ones(shape=(func_data.shape[0],))
+            if args.fd_censoring:
+                logger.info(f" censoring timepoints using a high motion mask with a framewise displacement threshold of {args.fd_threshold}")
+                confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
+                sample_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()
                 sample_mask = sample_mask < args.fd_threshold
                 events_df = events_df.loc[sample_mask, :]
-                
+                noise_df = noise_df.loc[sample_mask, :]
+
+            if args.lowpass or args.highpass:    
                 logger.info(f" detrending and filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
                 func_data_filtered = clean(
                     signals=func_data,
                     detrend=args.detrend_data,
                     sample_mask=sample_mask,
-                    # confounds=noise_df,
                     filter="butterworth",
-                    # low_pass=args.bp_filter[0],
-                    # high_pass=args.bp_filter[1],
                     low_pass=args.lowpass if args.lowpass else None,
                     high_pass=args.highpass if args.highpass else None,
                     t_r=tr,
@@ -625,6 +787,11 @@ def main():
                 )
                 run_map["data_detrend"] = func_data_detrend
                 func_data = func_data_detrend
+                if args.fd_censoring:
+                    func_data = func_data[sample_mask, :]
+            elif args.fd_censoring:
+                func_data = func_data[sample_mask, :]
+
 
             if args.debug: 
                 cleanimg, img_suffix = create_image(
@@ -640,12 +807,20 @@ def main():
                     cleaned_filename
                 )
 
+
+            assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
+            if not args.nuisance_regression:
+                logger.info(" appending nuisance matrix to the design matrix")
+                noise_df_list.append(noise_df)
+
             logger.info(" appending BOLD data and design matrix to run list")
             trial_types.update(run_conditions)
 
+            assert func_data.shape[0] == len(events_df), "The functional data and the design matrix have a different number of timepoints"
             func_data_list.append(func_data)
             design_df_list.append(events_df)
-
+            
+            
         logger.info("concatenating run level BOLD data and design matrices for GLM")
         final_func_data, final_design_df = create_final_design(
             data_list=func_data_list,
@@ -668,18 +843,19 @@ def main():
             if args.fir and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
                 fir_betas_to_combine.add(c[:-3])
                 continue
-            beta_img, img_suffix = create_image(
-                data=np.expand_dims(activation_betas[i,:], axis=0),
-                brain_mask=args.brain_mask,
-                tr=tr,
-                header=img_header
-            )
-            beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
-            logger.info(f" saving betas for variable {c} to file: {beta_filename}")
-            nib.save(
-                beta_img,
-                beta_filename
-            )
+            elif c in trial_types:
+                beta_img, img_suffix = create_image(
+                    data=np.expand_dims(activation_betas[i,:], axis=0),
+                    brain_mask=args.brain_mask,
+                    tr=tr,
+                    header=img_header
+                )
+                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+                logger.info(f" saving betas for variable {c} to file: {beta_filename}")
+                nib.save(
+                    beta_img,
+                    beta_filename
+                )
 
         if args.fir:
             for condition in fir_betas_to_combine:
