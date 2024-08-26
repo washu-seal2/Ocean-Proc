@@ -259,6 +259,8 @@ def make_noise_ts(confounds_file: str,
     select_columns = set(confounds_columns)
     if volterra_columns:
         select_columns.update(volterra_columns)
+    if spike_threshold:
+        select_columns.add(fd)
     nuisance = pd.read_csv(confounds_file, delimiter='\t').loc[:,list(select_columns)]
     if "framewise_displacement" in select_columns:
         nuisance.loc[0, "framewise_displacement"] = 0
@@ -281,6 +283,8 @@ def make_noise_ts(confounds_file: str,
                 nuisance[f"spike{b}"] = 0
                 nuisance.loc[a, f"spike{b}"] = 1
                 b += 1
+        if fd not in confound_columns:
+                nuisance.drop(columns=fd, inplace=True)
 
     if volterra_expansion and volterra_columns:
         for vc in volterra_columns:
@@ -292,6 +296,8 @@ def make_noise_ts(confounds_file: str,
     elif volterra_columns:
         raise RuntimeError("You must specify the lag applied in Volterra expansion.")
 
+    
+        
     return nuisance
 
 
@@ -516,15 +522,16 @@ def create_final_design(data_list: list[npt.ArrayLike],
         assert num_runs == len(noise_list), "There should be the same number of noise matrices and functional runs"
         for i in range(num_runs):
             noise_df = noise_list[i]
+            assert len(noise_df) == len(design_list[i])
             rename_dict = dict()
             for c in noise_df.columns:
                 if ("trend" in c) or ("mean" in c) or ("spike" in c):
                     rename_dict[c] = f"run-{i+1}_{c}"
             noise_df = noise_df.rename(columns=rename_dict)
             noise_list[i] = noise_df
-            design_list[i] = pd.concat([design_list[i], noise_df], axis=1)
+            design_list[i] = pd.concat([design_list[i].reset_index(drop=True), noise_df.reset_index(drop=True)], axis=1)
 
-    final_design = pd.concat(design_list, axis=0, ignore_index=True)
+    final_design = pd.concat(design_list, axis=0, ignore_index=True).fillna(0)
     final_data = np.concat(data_list, axis=0)
     return (final_data, final_design)
 
@@ -596,17 +603,20 @@ def main():
     config_arguments.add_argument("--hrf_vars", nargs="*",
                         help="""A list of the task regressors to apply this HRF model to. The default is to apply it to all regressors if no
                         value is specifed. A list must be specified if both types of models are being used""")
-    config_arguments.add_argument("--confounds", "-c", nargs="+", required=True,
+    config_arguments.add_argument("--confounds", "-c", nargs="+", default=[], 
                         help="A list of confounds to include from each confound timeseries tsv file.")
-    config_arguments.add_argument("--fd_threshold", "-fd", type=float, 
+    config_arguments.add_argument("--fd_threshold", "-fd", type=float, default=0.9,
                         help="The framewise displacement threshold used when censoring high-motion frames")
     config_arguments.add_argument("--repetition_time", "-tr", type=float,
                         help="Repetition time of the function runs. If it is not supplied, an attempt will be made to read it from the JSON sidecar file.")
     config_arguments.add_argument("--detrend_data", "-dd", action="store_true", 
                         help="""Flag to demean and detrend the data before modeling. The default is to include
                         a mean and trend line into the nuisance matrix instead.""")
-    config_arguments.add_argument("--spike_censoring", "-sc", action="store_true",
-                        help="Flag to indicate that framewise displacement spike censoring should be included in the nuisance matrix.")
+    high_motion_params = config_arguments.add_mutually_exclusive_group()
+    high_motion_params.add_argument("--spike_regression", "-sr", action="store_true",
+                        help="Flag to indicate that framewise displacement spike regression should be included in the nuisance matrix.")
+    high_motion_params.add_argument("--fd_censoring", "-fc", action="store_true",
+                        help="Flag to indicate that frames above the framewise displacement threshold should be censored before the glm.")
     config_arguments.add_argument("--nuisance_regression", "-nr", action="store_true",
                         help="Flag to indicate that nuisance regression should be performed before performing the GLM for event-related activation.")
     config_arguments.add_argument("--highpass", "-hp", type=float, nargs="?", const=0.008,
@@ -618,7 +628,7 @@ def main():
     config_arguments.add_argument("--volterra_lag", "-vl", nargs="?", const=2, type=int,
                         help="""The amount of frames to lag for a volterra expansion. If no value is specified
                         the default of 2 will be used. Must be specifed with the '--volterra_columns' option.""")
-    config_arguments.add_argument("--volterra_columns", "-vc", nargs="+",
+    config_arguments.add_argument("--volterra_columns", "-vc", nargs="+", default=[],
                         help="The confound columns to include in the expansion. Must be specifed with the '--volterra_lag' option.")
     
     args = parser.parse_args()
@@ -634,7 +644,7 @@ def main():
     if (args.bold_file_type == ".nii" or args.bold_file_type == ".nii.gz") and (not args.brain_mask or not args.brain_mask.is_file()):
         parser.error("If the bold file type is volumetric data, a valid '--brain_mask' option must also be supplied")
 
-    if (args.volterra_lag != None and args.volterra_columns == None) or (args.volterra_lag == None and args.volterra_columns != None):
+    if (args.volterra_lag and not args.volterra_columns) or (not args.volterra_lag and args.volterra_columns):
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
 
     ##### Export the current arguments to a file #####
@@ -751,7 +761,7 @@ def main():
                 confounds_columns=args.confounds,
                 demean=(not args.detrend_data), 
                 linear_trend=(not args.detrend_data),
-                spike_threshold=args.fd_threshold if args.spike_censoring else None,
+                spike_threshold=args.fd_threshold if args.spike_regression else None,
                 volterra_expansion=args.volterra_lag,
                 volterra_columns=args.volterra_columns
             )
@@ -768,9 +778,7 @@ def main():
                 )
                 run_map["data_resids"] = func_data_residuals
                 func_data = func_data_residuals
-            else:
-                logger.info(" appending nuisance matrix to design matrix")
-                noise_df_list.append(noise_df)
+
 
             if args.debug:
                 nrimg, img_suffix = create_image(
@@ -786,22 +794,23 @@ def main():
                     nr_filename
                 )
 
-            # if args.bp_filter:
-            if args.lowpass or args.highpass:
-                logger.info(f" creating high motion mask using framewise displacement threshold of {args.fd_threshold}")
-                sample_mask = noise_df.loc[:, "framewise_displacement"].to_numpy()
+
+            sample_mask = np.ones(shape=(func_data.shape[0],))
+            if args.fd_censoring:
+                logger.info(f" censoring timepoints using a high motion mask with a framewise displacement threshold of {args.fd_threshold}")
+                confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
+                sample_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()
                 sample_mask = sample_mask < args.fd_threshold
                 events_df = events_df.loc[sample_mask, :]
-                
+                noise_df = noise_df.loc[sample_mask, :]
+
+            if args.lowpass or args.highpass:    
                 logger.info(f" detrending and filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
                 func_data_filtered = clean(
                     signals=func_data,
                     detrend=args.detrend_data,
                     sample_mask=sample_mask,
-                    # confounds=noise_df,
                     filter="butterworth",
-                    # low_pass=args.bp_filter[0],
-                    # high_pass=args.bp_filter[1],
                     low_pass=args.lowpass if args.lowpass else None,
                     high_pass=args.highpass if args.highpass else None,
                     t_r=tr,
@@ -815,6 +824,11 @@ def main():
                 )
                 run_map["data_detrend"] = func_data_detrend
                 func_data = func_data_detrend
+                if args.fd_censoring:
+                    func_data = func_data[sample_mask, :]
+            elif args.fd_censoring:
+                func_data = func_data[sample_mask, :]
+
 
             if args.debug: 
                 cleanimg, img_suffix = create_image(
@@ -830,12 +844,20 @@ def main():
                     cleaned_filename
                 )
 
+
+            assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
+            if not args.nuisance_regression:
+                logger.info(" appending nuisance matrix to the design matrix")
+                noise_df_list.append(noise_df)
+
             logger.info(" appending BOLD data and design matrix to run list")
             trial_types.update(run_conditions)
 
+            assert func_data.shape[0] == len(events_df), "The functional data and the design matrix have a different number of timepoints"
             func_data_list.append(func_data)
             design_df_list.append(events_df)
-
+            
+            
         logger.info("concatenating run level BOLD data and design matrices for GLM")
         final_func_data, final_design_df = create_final_design(
             data_list=func_data_list,
@@ -858,18 +880,19 @@ def main():
             if args.fir and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
                 fir_betas_to_combine.add(c[:-3])
                 continue
-            beta_img, img_suffix = create_image(
-                data=np.expand_dims(activation_betas[i,:], axis=0),
-                brain_mask=args.brain_mask,
-                tr=tr,
-                header=img_header
-            )
-            beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
-            logger.info(f" saving betas for variable {c} to file: {beta_filename}")
-            nib.save(
-                beta_img,
-                beta_filename
-            )
+            elif c in trial_types:
+                beta_img, img_suffix = create_image(
+                    data=np.expand_dims(activation_betas[i,:], axis=0),
+                    brain_mask=args.brain_mask,
+                    tr=tr,
+                    header=img_header
+                )
+                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+                logger.info(f" saving betas for variable {c} to file: {beta_filename}")
+                nib.save(
+                    beta_img,
+                    beta_filename
+                )
 
         if args.fir:
             for condition in fir_betas_to_combine:
