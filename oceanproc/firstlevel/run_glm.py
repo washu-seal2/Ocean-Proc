@@ -721,7 +721,6 @@ def main():
                 fir_list=args.fir_vars if args.fir_vars else None,
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
-                logger=logger,
                 output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
             )
 
@@ -749,20 +748,19 @@ def main():
                 run_map["data_resids"] = func_data_residuals
                 func_data = func_data_residuals
 
-
-            if args.debug:
-                nrimg, img_suffix = create_image(
-                    data=func_data,
-                    brain_mask=args.brain_mask,
-                    tr=tr,
-                    header=img_header
-                )
-                nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
-                logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
-                nib.save(
-                    nrimg,
-                    nr_filename
-                )
+                if args.debug:
+                    nrimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
+                    logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
+                    nib.save(
+                        nrimg,
+                        nr_filename
+                    )
 
 
             sample_mask = np.ones(shape=(func_data.shape[0],))
@@ -787,6 +785,19 @@ def main():
                 )
                 run_map["data_filtered"] = func_data_filtered
                 func_data = func_data_filtered
+                if args.debug: 
+                    cleanimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
+                    logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
+                    nib.save(
+                        cleanimg,
+                        cleaned_filename
+                    )
             elif args.detrend_data:
                 logger.info(" detrending the BOLD data")
                 func_data_detrend = demean_detrend(
@@ -796,23 +807,22 @@ def main():
                 func_data = func_data_detrend
                 if args.fd_censoring:
                     func_data = func_data[sample_mask, :]
+                if args.debug: 
+                    cleanimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
+                    logger.debug(f" saving BOLD data after detrending to file: {cleaned_filename}")
+                    nib.save(
+                        cleanimg,
+                        cleaned_filename
+                    )
             elif args.fd_censoring:
                 func_data = func_data[sample_mask, :]
-
-
-            if args.debug: 
-                cleanimg, img_suffix = create_image(
-                    data=func_data,
-                    brain_mask=args.brain_mask,
-                    tr=tr,
-                    header=img_header
-                )
-                cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
-                logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
-                nib.save(
-                    cleanimg,
-                    cleaned_filename
-                )
+            
 
 
             assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
@@ -887,7 +897,7 @@ def main():
         logger.info("oceanfla complete!")
 
     except Exception as e:
-        logger.error(e)
+        logger.exception(e, stack_info=True)
         exit_program_early(str(e))
 
 if __name__ == "__main__":
