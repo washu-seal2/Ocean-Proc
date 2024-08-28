@@ -114,6 +114,7 @@ def run_dcm2bids(source_dir:Path,
                                           """))
         if ans:
             shutil.rmtree(path_that_exists)
+            clean_up()
         else:
             return
         
