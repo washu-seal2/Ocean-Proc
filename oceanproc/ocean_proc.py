@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import sys
 from pathlib import Path
 import logging
@@ -13,8 +12,7 @@ from .utils import exit_program_early, prompt_user_continue, make_option, prepar
 from .oceanparse import OceanParser
 import shlex
 import shutil
-from subprocess import Popen, PIPE, TimeoutExpired
-import json
+from subprocess import Popen, PIPE
 from textwrap import dedent
 
 logging.basicConfig(level=logging.INFO,
