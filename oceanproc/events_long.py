@@ -6,7 +6,9 @@ import os
 from .utils import exit_program_early
 from glob import glob
 from pathlib import Path
+import logging
 
+logger = logging.getLogger(__name__)
 
 def find_nearest(array, value):
     """
@@ -99,7 +101,7 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
     
     """
 
-    print("####### Creating long formatted event files ########")
+    logger.info("####### Creating long formatted event files ########")
 
     bids_func = bids_path / f"sub-{sub}/ses-{ses}/func"
     derivs_func = derivs_path / f"sub-{sub}/ses-{ses}/func"
@@ -109,7 +111,7 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
         exit_program_early(f"Cannnot find 'func' - {derivs_func} - derivatives directory for this subject and session")
 
     event_time_files = list(bids_func.glob("*_events.tsv"))
-    print(f"Found {len(event_time_files)} event timing files")
+    logger.info(f"Found {len(event_time_files)} event timing files")
     for etf in event_time_files:
         search_path = f"/sub-{sub}_ses-{ses}*"
         task = etf.name.split('task-')[-1].split('_')[0]
@@ -120,11 +122,11 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
             search_path = f"{search_path}run-{run}*"
         bold_file = list(bids_func.glob(f"{search_path}bold.nii*"))
         if len(bold_file) < 1:
-            print(f"Could not find any bold files that matched this event timing file: {etf}")
+            logger.info(f"Could not find any bold files that matched this event timing file: {etf}")
             continue
         confounds_file = list(derivs_func.glob(f"{search_path}confounds_timeseries.tsv"))
         if len(confounds_file) < 1:
-            print(f"Could not find any confounds files that matched this event timing file: {etf}")
+            logger.info(f"Could not find any confounds files that matched this event timing file: {etf}")
             continue
         confounds_file = confounds_file[0]
         bold_file = bold_file[0]

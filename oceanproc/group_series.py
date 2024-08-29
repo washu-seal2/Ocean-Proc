@@ -10,6 +10,9 @@ import re
 from pathlib import Path
 import xml.etree.ElementTree as et
 from .utils import exit_program_early
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_locals_from_xml(xml_path: Path) -> set:
     """
@@ -121,7 +124,7 @@ def map_fmap_to_func(xml_path: Path,
     :param bids_dir_path: path to BIDS-compliant session directory
     :type bids_dir_path: pathlib.Path
     """
-    print("####### Pairing field maps to functional runs #######")
+    logger.info("####### Pairing field maps to functional runs #######")
 
     if not xml_path.is_file():
         exit_program_early(f"Session xml file {xml_path} does not exist.")
@@ -130,12 +133,12 @@ def map_fmap_to_func(xml_path: Path,
     series_json = defaultdict(list)
 
     locals_series = get_locals_from_xml(xml_path)
-    print(f"Localizers: {locals_series}")
+    logger.info(f"Localizers: {locals_series}")
 
     groups = [{"task":set(), "fmapAP": set(), "fmapPA": set()} for _ in locals_series]
     get_func_from_bids(bids_dir_path, locals_series, series_json, groups)
     get_fmap_from_bids(bids_dir_path, locals_series, series_json, groups)
-    print(f"Localizer groups: {groups}") 
+    logger.info(f"Localizer groups: {groups}") 
 
     for group in groups:
         # assert len(group["fmapAP"]) == len(group["fmapPA"]), "Unequal number of AP and PA field maps!"
@@ -157,7 +160,7 @@ def map_fmap_to_func(xml_path: Path,
             diff = list(map(lambda x: abs(x-aqt), fmap_times))
             pairing = fmap_pairs[diff.index(min(diff))]
             map_pairings[pairing].append(t)
-        print(f"Field map pairings: {map_pairings}")
+        logger.info(f"Field map pairings: {map_pairings}")
 
         # add the list of task run files that are paried with each field map in their json files
         for k,v in map_pairings.items():
@@ -168,7 +171,9 @@ def map_fmap_to_func(xml_path: Path,
                 for t in v:
                     for echo in series_json[t]:
                         jd["IntendedFor"].append(echo["bidsname"])
-                with open(bids_dir_path/f"fmap/{file}", "w") as out_file:
+                fmap_file = bids_dir_path/f"fmap/{file}"
+                with open(fmap_file, "w") as out_file:
+                    logger.debug(f"writing field map pairing information to file: {fmap_file}")
                     out_file.write(json.dumps(jd, indent=4))
 
 if __name__ == "__main__":

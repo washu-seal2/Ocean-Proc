@@ -12,8 +12,10 @@ import shutil
 import subprocess
 from textwrap import dedent
 import xml.etree.ElementTree as et
-from .utils import exit_program_early, prompt_user_continue
+from .utils import exit_program_early, prompt_user_continue, prepare_subprocess_logging
+import logging
 
+logger = logging.getLogger(__name__)
 
 def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     """
@@ -27,7 +29,7 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     :type subject: str
 
     """
-    print("####### Removing the scans marked 'unusable' #######")
+    logger.info("####### Removing the scans marked 'unusable' #######")
 
     if not xml_file.exists():
         exit_program_early(f"Path {str(xml_file)} does not exist.")
@@ -45,6 +47,8 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     
     if len(quality_pairs) == 0:
         exit_program_early("Could not find scan quality information in the given xml file.") 
+
+    logger.debug(f"scan quality information: {quality_pairs}")
     
     json_paths = sorted(list(p for p in (bids_data_path / f"sub-{subject}/").rglob("*.json"))) # if re.search(json_re, p.as_posix()) != None)
     nii_paths = sorted(list(p for p in (bids_data_path / f"sub-{subject}/").rglob("*.nii.gz"))) # if re.search(json_re, p.as_posix()) != None)
@@ -58,7 +62,7 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     for p_json, p_nii in zip(json_paths, nii_paths):
         j = json.load(p_json.open()) 
         if quality_pairs[j["SeriesNumber"]] == "unusable":
-            print(f"  Removing series {j['SeriesNumber']}: NIFTI:{p_nii}, JSON:{p_json}")
+            logger.info(f"  Removing series {j['SeriesNumber']}: NIFTI:{p_nii}, JSON:{p_json}")
             os.remove(p_json) 
             os.remove(p_nii) 
 
@@ -101,10 +105,11 @@ def run_dcm2bids(source_dir:Path,
     
     def clean_up():
         try:
+            logger.debug(f"removing the temporary directory used by dcm2bids: {tmp_path}")
             shutil.rmtree(tmp_path)
         except Exception as e:
-            print(e)
-            print(f"There was a problem deleting the temporary directory at {tmp_path}")
+            logger.warning(f"There was a problem deleting the temporary directory at {tmp_path}")
+            logger.exception(e)
     
     if (path_that_exists := bids_output_dir/f"sub-{subject}/ses-{session}").exists():
         ans = prompt_user_continue(dedent(f"""
@@ -113,6 +118,7 @@ def run_dcm2bids(source_dir:Path,
                                     dcm2bids will be skipped.
                                           """))
         if ans:
+            logger.debug("removing the old BIDS raw data directory and its contents")
             shutil.rmtree(path_that_exists)
             clean_up()
         else:
@@ -120,7 +126,7 @@ def run_dcm2bids(source_dir:Path,
         
     nifti_path = None    
     if not nifti:
-        print("####### Converting DICOM files into NIFTI #######")
+        logger.info("####### Converting DICOM files into NIFTI #######")
         run_dcm2niix(source_dir=source_dir, 
                      tmp_nifti_dir=tmp_path)
         nifti_path = tmp_path
@@ -136,12 +142,15 @@ def run_dcm2bids(source_dir:Path,
                                  -o {str(bids_output_dir)}
                                  """)
     try:
-        print("####### Running first round of Dcm2Bids ########")
+        logger.info("####### Running first round of Dcm2Bids ########")
         # subprocess.check_output(helper_command) # run helper command to generate json/.nii files; throw error if fail
-        with subprocess.Popen(helper_command, stdout=subprocess.PIPE) as p:
+        prepare_subprocess_logging(logger)
+        with subprocess.Popen(helper_command, stdout=subprocess.PIPE) as p:    
             while p.poll() == None:
-                text = p.stdout.read1().decode("utf-8", "ignore")
-                print(text, end="", flush=True)
+                for line in p.stdout:
+                    logger.info(line.decode("utf-8", "ignore"))
+            prepare_subprocess_logging(logger, stop=True)
+            p.kill()
             if p.poll() != 0:
                 raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
             
@@ -158,22 +167,27 @@ def run_dcm2bids(source_dir:Path,
                                             -c {str(nordic_config)}
                                             -o {str(bids_output_dir)}
                                             """)
-            print("####### Running second round of Dcm2Bids ########")
+            logger.info("####### Running second round of Dcm2Bids ########")
             # subprocess.check_output(nordic_run_command)
+            prepare_subprocess_logging(logger)
             with subprocess.Popen(nordic_run_command, stdout=subprocess.PIPE) as p:
                 while p.poll() == None:
-                    text = p.stdout.read1().decode("utf-8", "ignore")
-                    print(text, end="", flush=True)
+                    for line in p.stdout:
+                        logger.info(line.decode("utf-8", "ignore"))
+                prepare_subprocess_logging(logger, stop=True)
+                p.kill()
                 if p.poll() != 0:
                     raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
                 
             # Clean up NORDIC files
             separate_nordic_files = glob(f"{str(bids_output_dir)}/sub-{subject}/ses-{session}/func/*_part-*")
+            logger.debug(f"removing the old nordic files that are not needed after mag-phase combination :\n  {separate_nordic_files}")
             for f in separate_nordic_files:
                 os.remove(f)
 
     except RuntimeError or subprocess.CalledProcessError as e:
-        print(e)
+        prepare_subprocess_logging(logger, stop=True)
+        logger.exception(e, stack_info=True)
         exit_program_early("Problem running 'dcm2bids'.", clean_up)
     clean_up()
 
@@ -206,22 +220,26 @@ def run_dcm2niix(source_dir:Path,
                                 -o {str(tmp_nifti_dir)}
                                 {str(source_dir)}
                                 """)
-    try:
+    try: 
+        prepare_subprocess_logging(logger)
         with subprocess.Popen(helper_command, stdout=subprocess.PIPE) as p:
             while p.poll() == None:
-                text = p.stdout.read1().decode("utf-8", "ignore")
-                print(text, end="", flush=True)
+                for line in p.stdout:
+                    logger.info(line.decode("utf-8", "ignore"))
+            prepare_subprocess_logging(logger, stop=True)
+            p.kill()
             if p.poll() != 0:
                 raise RuntimeError("'dcm2bniix' has ended with a non-zero exit code.")
     except RuntimeError or subprocess.CalledProcessError as e:
-        print(e)
+        prepare_subprocess_logging(logger, stop=True)
+        logger.exception(e, stack_info=True)
         exit_program_early("Problem running 'dcm2niix'.", 
                            exit_func=clean_up_func if clean_up_func else None)
         
     # Delete extra files from short runs
-    for f in tmp_nifti_dir.glob("*a.nii.gz"):
-        os.remove(f)
-    for f in tmp_nifti_dir.glob("*a.json"):
+    files_to_remove = list(tmp_nifti_dir.glob("*a.nii.gz")) + list(tmp_nifti_dir.glob("*a.json"))
+    logger.debug(f"removing the extra files created from shortened runs :\n  {files_to_remove}")
+    for f in files_to_remove:
         os.remove(f)
     
     

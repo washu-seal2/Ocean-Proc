@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import sys
 from pathlib import Path
+import logging
+import datetime
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue, make_option
+from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file
 from .oceanparse import OceanParser
 import shlex
 import shutil
 from subprocess import Popen, PIPE
-import json
 from textwrap import dedent
 
+logging.basicConfig(level=logging.INFO,
+                    handlers=[logging.StreamHandler(stream=sys.stdout)],
+                    format=default_log_format)
+logger = logging.getLogger() 
 
 def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     dir_to_make = dir_path / f"sub-{subject}_ses-{session}"
@@ -24,8 +28,10 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
             Would you like to delete its contents and start fresh?
             """))
         if want_to_delete:
+            logger.debug("removing the old working directory and its contents")
             shutil.rmtree(dir_to_make)
     dir_to_make.mkdir(exist_ok=True)
+    logger.info(f"creating a new working directory at the path: {dir_to_make}")
     return dir_to_make
 
 
@@ -51,7 +57,7 @@ def run_fmri_prep(subject:str,
     """
     clean_up = lambda : shutil.rmtree(remove_work_folder) if remove_work_folder else None
 
-    print("####### Starting fMRIPrep #######")
+    logger.info("####### Starting fMRIPrep #######")
     if not bids_path.exists():
         exit_program_early(f"Bids path {bids_path} does not exist.")
     elif not derivs_path.exists():
@@ -76,15 +82,19 @@ def run_fmri_prep(subject:str,
                                  participant""")
     try:
         command_str = " ".join(helper_command)
-        print(f"Running fmriprep-docker with the following command: \n  {command_str} \n")
+        logger.info(f"Running fmriprep-docker with the following command: \n  {command_str} \n")
+        prepare_subprocess_logging(logger)
         with Popen(helper_command, stdout=PIPE) as p:
             while p.poll() == None:
-                text = p.stdout.read1().decode("utf-8", "ignore")
-                print(text, end="", flush=True)
+                for line in p.stdout:
+                    logger.info(line.decode("utf-8", "ignore"))
+            prepare_subprocess_logging(logger, stop=True)
+            p.kill()
             if p.poll() != 0:
                 raise RuntimeError("'fmriprep-docker' has ended with a non-zero exit code.")
     except RuntimeError as e:
-        print(e) 
+        prepare_subprocess_logging(logger, stop=True)
+        logger.exception(e, stack_info=True) 
         exit_program_early("Program 'fmriprep-docker' has run into an error.", clean_up)
     clean_up()
     
@@ -123,9 +133,15 @@ def main():
                         help="Path to a file to save the current configuration arguments")
     session_arguments.add_argument("--keep_work_dir", action="store_true",
                         help="Flag to stop the deletion of the fMRIPrep working directory")
+    session_arguments.add_argument("--debug", action="store_true",
+                        help="Flag to run the program in debug mode for more verbose logging")
 
     config_arguments.add_argument("--bids_path", "-b", type=Path, required=True,
                         help="The path to the directory containing the raw nifti data for all subjects, in BIDS format") 
+    config_arguments.add_argument("--derivs_path", "-d", type=Path, required=True,
+                        help="The path to the BIDS formated derivatives directory for this subject")
+    config_arguments.add_argument("--derivs_subfolder", "-ds", default="fmriprep",
+                        help="The subfolder in the derivatives directory where bids style outputs should be stored. The default is 'fmriprep'.")
     config_arguments.add_argument("--bids_config", "-c", type=Path, required=True,
                         help="The path to the dcm2bids config file to use for this subject and session")
     config_arguments.add_argument("--nordic_config", "-n", type=Path,
@@ -138,35 +154,53 @@ def main():
                         help="framewise displacement threshold (in mm) to determine outlier framee (Default is 0.9).")
     config_arguments.add_argument("--skip_bids_validation", action="store_true",
                         help="Specifies skipping BIDS validation (only enabled for fMRIprep step)")
-    config_arguments.add_argument("--derivs_path", "-d", type=Path, required=True,
-                        help="The path to the BIDS formated derivatives directory for this subject")
     config_arguments.add_argument("--work_dir", "-w", type=Path, required=True,
                         help="The path to the working directory used to store intermediate files")
     config_arguments.add_argument("--fs_license", "-l", type=Path, required=True,
                         help="The path to the license file for the local installation of FreeSurfer")
-    
+    config_arguments.add_argument("--fmriprep_version", "-fv", default="23.1.4", dest="image",
+                        help="The version of fmriprep to use. The default is 23.1.4. It is reccomended that an entire study use the same version.")
     args = parser.parse_args()
 
-    args.work_dir = make_work_directory(args.work_dir, args.subject, args.session)
+    try:
+        assert args.derivs_path.is_dir(), "Derivatives directory must exist but it cannot be found"
+        assert args.bids_path.is_dir(), "Raw Bids directory must exist but it cannot be found"
+        assert args.source_data.is_dir(), "Source data directory must exist but it cannot be found"
+        assert args.work_dir.is_dir(), "Work directroy must exist but it cannot be found"
+    except AssertionError as e:
+        logger.exception(e)
+        exit_program_early(e)
 
     ##### Export the current configuration arguments to a file #####
     if args.export_args:
-        print(f"####### Exporting Configuration Arguments to: '{args.export_args}' #######")
-        all_opts = dict(args._get_kwargs())
-        opts_to_save = dict()
-        for a in config_arguments._group_actions:
-            if all_opts[a.dest]:
-                if type(all_opts[a.dest]) == bool:
-                    opts_to_save[a.option_strings[0]] = ""
-                    continue
-                opts_to_save[a.option_strings[0]] = all_opts[a.dest]
-        with open(args.export_args, "w") as f:
-            if args.export_args.suffix == ".json":
-                f.write(json.dumps(opts_to_save, indent=4))
-            else:
-                for k,v in opts_to_save.items():
-                    f.write(f"{k}{make_option(value=v)}\n")
+        try:
+            assert args.export_args.parent.exists() and args.export_args.suffix, "Argument export path must be a file path in a directory that exists"
+            logger.info(f"####### Exporting Configuration Arguments to: '{args.export_args}' #######")
+            export_args_to_file(args, config_arguments, args.export_args)
+        except Exception as e:
+            logger.exception(e)
+            exit_program_early(e)
 
+    args.image = f"nipreps/fmriprep:{args.image}"
+
+    args.derivs_path = args.derivs_path / args.derivs_subfolder
+
+    log_dir = args.derivs_path / f"sub-{args.subject}/log"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_oceanproc_desc-{datetime.datetime.now().strftime('%m-%d-%y_%I-%M%p')}.log"
+    add_file_handler(logger, log_path)
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
+    logger.info("Starting oceanproc...")
+    logger.info(f"Log will be stored at {log_path}")
+
+    # log the input arguments
+    for k,v in (dict(args._get_kwargs())).items():
+        logger.info(f" {k} : {v}")
+
+    args.work_dir = make_work_directory(args.work_dir, args.subject, args.session)
 
     ##### Convert raw DICOMs to BIDS structure #####
     if not args.skip_dcm2bids:
@@ -194,7 +228,13 @@ def main():
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
 
-    fmrip_options = {"work_dir", "fs_license", "fs_subjects_dir", "skip_bids_validation", "fd_spike_threshold", "anat_only"}
+    fmrip_options = {"work_dir", 
+                     "fs_license", 
+                     "fs_subjects_dir", 
+                     "skip_bids_validation", 
+                     "fd_spike_threshold", 
+                     "anat_only",
+                     "image"}
     fmrip_opt_chain = " ".join([make_option(all_opts[fo], key=fo, delimeter="=", convert_underscore=True) for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
@@ -217,7 +257,7 @@ def main():
             fd_thresh=args.fd_spike_threshold
         )
 
-    print("####### [DONE] Finished all processing, exiting now #######")
+    logger.info("####### [DONE] Finished all processing, exiting now #######")
 
     
 if __name__ == "__main__":

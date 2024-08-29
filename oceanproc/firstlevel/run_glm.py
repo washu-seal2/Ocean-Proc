@@ -17,7 +17,7 @@ import json
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
-from ..utils import exit_program_early, make_option
+from ..utils import exit_program_early, make_option, add_file_handler, default_log_format, export_args_to_file
 import logging
 import datetime
 from textwrap import dedent
@@ -32,7 +32,8 @@ TODO:
 
 """
 logging.basicConfig(level=logging.INFO,
-                    handlers=[logging.StreamHandler(stream=sys.stdout)])
+                    handlers=[logging.StreamHandler(stream=sys.stdout)],
+                    format=default_log_format)
 logger = logging.getLogger()
 
 
@@ -619,32 +620,24 @@ def main():
 
     if (args.volterra_lag and not args.volterra_columns) or (not args.volterra_lag and args.volterra_columns):
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
+   
+    try:
+        assert args.derivs_dir.is_dir(), "Derivatives directory must exist but is not found"
+        assert args.raw_bids.is_dir(), "Raw data directory must exist but is not found"
+    except AssertionError as e:
+        logger.exception(e)
+        exit_program_early(e)
 
     ##### Export the current arguments to a file #####
     if args.export_args:
-        print(f"####### Exporting Arguments to: '{args.export_args}' #######")
-        all_opts = dict(args._get_kwargs())
-        opts_to_save = dict()
-        for a in config_arguments._group_actions:
-            if a.dest in all_opts and all_opts[a.dest]:
-                if type(all_opts[a.dest]) == bool:
-                    opts_to_save[a.option_strings[0]] = ""
-                    continue
-                elif isinstance(all_opts[a.dest], Path):
-                    opts_to_save[a.option_strings[0]] = str(all_opts[a.dest])
-                    continue
-                opts_to_save[a.option_strings[0]] = all_opts[a.dest]
-        with open(args.export_args, "w") as f:
-            if args.export_args.suffix == ".json":
-                f.write(json.dumps(opts_to_save, indent=4))
-            else:
-                for k,v in opts_to_save.items():
-                    f.write(f"{k}{make_option(value=v)}\n")
+        try:
+            assert args.export_args.parent.exists() and args.export_args.suffix, "Argument export path must be a file path in a directory that exists"
+            logger.info(f"####### Exporting Configuration Arguments to: '{args.export_args}' #######")
+            export_args_to_file(args, config_arguments, args.export_args)
+        except Exception as e:
+            logger.exception(e)
+            exit_program_early(e)
 
-    
-    assert args.derivs_dir.is_dir(), "Derivatives directory must exist"
-    assert args.raw_bids.is_dir(), "Raw data directory must exist"
-    
     if not hasattr(args, "output_dir") or args.output_dir == None:
         args.output_dir = args.derivs_dir / f"{args.derivs_subfolder}/sub-{args.subject}/ses-{args.session}/func"
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -652,16 +645,17 @@ def main():
     log_dir = args.output_dir.parent / "logs" 
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y_%I-%M%p')}.log"
-    log_file_handler = logging.FileHandler(log_path)
-    logger.addHandler(log_file_handler)
+    add_file_handler(logger, log_path)
+    
     if args.debug:
         logger.setLevel(logging.DEBUG)
+
     logger.info("Starting oceanfla...")
     logger.info(f"Log will be stored at {log_path}")
 
     # log the arguments used for this run
     for k,v in (dict(args._get_kwargs())).items():
-        logger.info(f"{k} : {v}")
+        logger.info(f" {k} : {v}")
         
     model_type = "MixedModel" if args.fir and args.hrf else "FIR" if args.fir else "HRF" 
     file_map_list = []
@@ -721,7 +715,6 @@ def main():
                 fir_list=args.fir_vars if args.fir_vars else None,
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
-                logger=logger,
                 output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
             )
 
@@ -749,20 +742,19 @@ def main():
                 run_map["data_resids"] = func_data_residuals
                 func_data = func_data_residuals
 
-
-            if args.debug:
-                nrimg, img_suffix = create_image(
-                    data=func_data,
-                    brain_mask=args.brain_mask,
-                    tr=tr,
-                    header=img_header
-                )
-                nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
-                logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
-                nib.save(
-                    nrimg,
-                    nr_filename
-                )
+                if args.debug:
+                    nrimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-nuisance-regress{img_suffix}"
+                    logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
+                    nib.save(
+                        nrimg,
+                        nr_filename
+                    )
 
 
             sample_mask = np.ones(shape=(func_data.shape[0],))
@@ -787,6 +779,19 @@ def main():
                 )
                 run_map["data_filtered"] = func_data_filtered
                 func_data = func_data_filtered
+                if args.debug: 
+                    cleanimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
+                    logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
+                    nib.save(
+                        cleanimg,
+                        cleaned_filename
+                    )
             elif args.detrend_data:
                 logger.info(" detrending the BOLD data")
                 func_data_detrend = demean_detrend(
@@ -796,23 +801,22 @@ def main():
                 func_data = func_data_detrend
                 if args.fd_censoring:
                     func_data = func_data[sample_mask, :]
+                if args.debug: 
+                    cleanimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
+                    logger.debug(f" saving BOLD data after detrending to file: {cleaned_filename}")
+                    nib.save(
+                        cleanimg,
+                        cleaned_filename
+                    )
             elif args.fd_censoring:
                 func_data = func_data[sample_mask, :]
-
-
-            if args.debug: 
-                cleanimg, img_suffix = create_image(
-                    data=func_data,
-                    brain_mask=args.brain_mask,
-                    tr=tr,
-                    header=img_header
-                )
-                cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-cleaned{img_suffix}"
-                logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
-                nib.save(
-                    cleanimg,
-                    cleaned_filename
-                )
+            
 
 
             assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
@@ -887,7 +891,7 @@ def main():
         logger.info("oceanfla complete!")
 
     except Exception as e:
-        logger.error(e)
+        logger.exception(e, stack_info=True)
         exit_program_early(str(e))
 
 if __name__ == "__main__":
