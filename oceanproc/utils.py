@@ -2,10 +2,31 @@ import sys
 import logging
 from pathlib import Path
 import json
+from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
 
 default_log_format = "%(levelname)s:%(module)s: %(message)s"
+
+flags = SimpleNamespace(debug = False)
+
+def takes_arguments(decorator):
+    def wrapper(*args, **kwargs):
+        def replacement(func):
+            return decorator(func, *args, **kwargs)
+        return replacement
+    return wrapper
+
+@takes_arguments
+def debug_logging(func, this_logger=None):
+    logger_to_use = this_logger if this_logger else logger
+    def inner(*args, **kwargs):
+        log_linebreak()
+        logger_to_use.debug(
+            f"calling - {func.__module__}:{func.__name__}({', '.join([str(a) for a in args] + [f'{k}={v}' for k,v in kwargs.items()])})"
+        )
+        return func(*args, **kwargs)
+    return inner
 
 def exit_program_early(msg:str, 
                        exit_func=None):
@@ -20,7 +41,8 @@ def exit_program_early(msg:str,
     :type exit_func: function
 
     """
-    logger.warning(f"---[ERROR]: {msg} \nExiting the program now...")
+    log_linebreak()
+    logger.warning(f"---[ERROR]: {msg} \nExiting the program now...\n")
     if exit_func and callable(exit_func):
         exit_func()
     sys.exit(1)
@@ -34,10 +56,10 @@ def prompt_user_continue(msg:str) -> bool:
     :type msg: str
 
     """
-    user_continue = input(f"""
-        {msg} 
-        ---(press 'y' for yes, other input will mean no) 
-    """)
+    prompt_msg = f"{msg} \n\t---(press 'y' for yes, other input will mean no)"
+    user_continue = input(prompt_msg+"\n")
+    logger.debug(f"User Prompt: {prompt_msg}")
+    logger.debug(f"User Response:  {user_continue}")
     return user_continue.lower() == "y"
 
 
@@ -127,6 +149,26 @@ def prepare_subprocess_logging(this_logger,
                 h.setFormatter(logging.Formatter("%(message)s"))
                 h.terminator = ""
             this_logger = this_logger.parent
+
+
+def log_linebreak():
+    """
+    Logs a single blank line using this module's logger.
+    Changes the formatter for each handler to be a empty, logs
+    a single blank line, then changes each formatter back to 
+    the default format
+    """
+    traverse_logger = logger
+    while traverse_logger != None:
+        for h in traverse_logger.handlers:
+            h.setFormatter(logging.Formatter(""))
+        traverse_logger = traverse_logger.parent
+    logger.info("")
+    traverse_logger = logger
+    while traverse_logger != None:
+        for h in traverse_logger.handlers:
+            h.setFormatter(logging.Formatter(default_log_format))
+        traverse_logger = traverse_logger.parent
 
 
 def export_args_to_file(args, 

@@ -12,11 +12,12 @@ import shutil
 import subprocess
 from textwrap import dedent
 import xml.etree.ElementTree as et
-from .utils import exit_program_early, prompt_user_continue, prepare_subprocess_logging
+from .utils import exit_program_early, prompt_user_continue, prepare_subprocess_logging, debug_logging, log_linebreak, flags
 import logging
 
 logger = logging.getLogger(__name__)
 
+@debug_logging(this_logger=logger)
 def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     """
     Will remove unusable scans from list of scans after dcm2bids has run.
@@ -29,7 +30,8 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     :type subject: str
 
     """
-    logger.info("####### Removing the scans marked 'unusable' #######")
+    log_linebreak()
+    logger.info("####### Removing the scans marked 'unusable' #######\n")
 
     if not xml_file.exists():
         exit_program_early(f"Path {str(xml_file)} does not exist.")
@@ -67,26 +69,27 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
             os.remove(p_nii) 
 
 
-def run_dcm2bids(source_dir:Path, 
+@debug_logging(this_logger=logger)
+def run_dcm2bids(subject:str, 
+                 session:str,
+                 source_dir:Path, 
                  bids_output_dir:Path, 
                  config_file:Path, 
-                 subject:str, 
-                 session:str, 
                  nordic_config:Path=None,
                  nifti:bool=False):
     """
     Run dcm2bids with a given set of parameters.
 
+    :param subject: Subject name (ex. 'sub-5000', subject would be '5000')
+    :type subject: str
+    :param session: Session name (ex. 'ses-01', session would be '01')
+    :type session: str
     :param source_dir: Path to 'sourcedata' directory (or wherever DICOM data is kept).
     :type source_dir: pathlib.Path
     :param bids_output_dir: Path to the bids directory to store the newly made NIFTI files
     :type bids_output_dir: pathlib.Path
     :param config_file: Path to dcm2bids config file, which maps raw sourcedata to BIDS-compliant counterpart
     :type config_file: pathlib.Path
-    :param subject: Subject name (ex. 'sub-5000', subject would be '5000')
-    :type subject: str
-    :param session: Session name (ex. 'ses-01', session would be '01')
-    :type session: str
     :param nordic_config: Path to second dcm2bids config file, needed for additional post processing that one BIDS config file can't handle.
     :type nordic_config: pathlib.Path
     :param nifti: Specify that the soure directory contains NIFTI files instead of DICOM
@@ -107,9 +110,8 @@ def run_dcm2bids(source_dir:Path,
         try:
             logger.debug(f"removing the temporary directory used by dcm2bids: {tmp_path}")
             shutil.rmtree(tmp_path)
-        except Exception as e:
+        except Exception:
             logger.warning(f"There was a problem deleting the temporary directory at {tmp_path}")
-            logger.exception(e)
     
     if (path_that_exists := bids_output_dir/f"sub-{subject}/ses-{session}").exists():
         ans = prompt_user_continue(dedent(f"""
@@ -126,7 +128,6 @@ def run_dcm2bids(source_dir:Path,
         
     nifti_path = None    
     if not nifti:
-        logger.info("####### Converting DICOM files into NIFTI #######")
         run_dcm2niix(source_dir=source_dir, 
                      tmp_nifti_dir=tmp_path)
         nifti_path = tmp_path
@@ -142,8 +143,8 @@ def run_dcm2bids(source_dir:Path,
                                  -o {str(bids_output_dir)}
                                  """)
     try:
-        logger.info("####### Running first round of Dcm2Bids ########")
-        # subprocess.check_output(helper_command) # run helper command to generate json/.nii files; throw error if fail
+        log_linebreak()
+        logger.info("####### Running first round of Dcm2Bids ########\n")
         prepare_subprocess_logging(logger)
         with subprocess.Popen(helper_command, stdout=subprocess.PIPE) as p:    
             while p.poll() == None:
@@ -167,8 +168,8 @@ def run_dcm2bids(source_dir:Path,
                                             -c {str(nordic_config)}
                                             -o {str(bids_output_dir)}
                                             """)
-            logger.info("####### Running second round of Dcm2Bids ########")
-            # subprocess.check_output(nordic_run_command)
+            log_linebreak()
+            logger.info("####### Running second round of Dcm2Bids ########\n")
             prepare_subprocess_logging(logger)
             with subprocess.Popen(nordic_run_command, stdout=subprocess.PIPE) as p:
                 while p.poll() == None:
@@ -180,18 +181,21 @@ def run_dcm2bids(source_dir:Path,
                     raise RuntimeError("'dcm2bids' has ended with a non-zero exit code.")
                 
             # Clean up NORDIC files
-            separate_nordic_files = glob(f"{str(bids_output_dir)}/sub-{subject}/ses-{session}/func/*_part-*")
-            logger.debug(f"removing the old nordic files that are not needed after mag-phase combination :\n  {separate_nordic_files}")
-            for f in separate_nordic_files:
-                os.remove(f)
+            if not flags.debug:
+                separate_nordic_files = glob(f"{str(bids_output_dir)}/sub-{subject}/ses-{session}/func/*_part-*")
+                logger.debug(f"removing the old nordic files that are not needed after mag-phase combination :\n  {separate_nordic_files}")
+                for f in separate_nordic_files:
+                    os.remove(f)
 
     except RuntimeError or subprocess.CalledProcessError as e:
         prepare_subprocess_logging(logger, stop=True)
         logger.exception(e, stack_info=True)
-        exit_program_early("Problem running 'dcm2bids'.", clean_up)
-    clean_up()
+        exit_program_early("Problem running 'dcm2bids'.", None if flags.debug else clean_up)
+    if not flags.debug:
+        clean_up()
 
 
+@debug_logging(this_logger=logger)
 def run_dcm2niix(source_dir:Path, 
                  tmp_nifti_dir:Path,
                  clean_up_func=None):
@@ -221,6 +225,8 @@ def run_dcm2niix(source_dir:Path,
                                 {str(source_dir)}
                                 """)
     try: 
+        log_linebreak()
+        logger.info("####### Converting DICOM files into NIFTI #######\n")
         prepare_subprocess_logging(logger)
         with subprocess.Popen(helper_command, stdout=subprocess.PIPE) as p:
             while p.poll() == None:
@@ -236,14 +242,21 @@ def run_dcm2niix(source_dir:Path,
         exit_program_early("Problem running 'dcm2niix'.", 
                            exit_func=clean_up_func if clean_up_func else None)
         
-    # Delete extra files from short runs
+    # Delete or move extra files from short runs
     files_to_remove = list(tmp_nifti_dir.glob("*a.nii.gz")) + list(tmp_nifti_dir.glob("*a.json"))
-    logger.debug(f"removing the extra files created from shortened runs :\n  {files_to_remove}")
-    for f in files_to_remove:
-        os.remove(f)
+    if flags.debug:
+        unused_files_dir = tmp_nifti_dir.parent / f"{tmp_nifti_dir.name}_unused"
+        unused_files_dir.mkdir()
+        logger.debug(f"moving some unused files and files created from shortened runs to directory {unused_files_dir}")
+        for f in files_to_remove:
+            shutil.move(f, unused_files_dir)
+    else:
+        logger.info(f"removing some unused files and files created from shortened runs :\n  {[str(f) for f in files_to_remove]}")
+        for f in files_to_remove:
+            os.remove(f)
     
     
-
+@debug_logging(this_logger=logger)
 def dicom_to_bids(subject:str, 
                   session:str, 
                   source_dir:Path, 
@@ -272,8 +285,17 @@ def dicom_to_bids(subject:str,
     :type nifti: bool
     """
 
-    run_dcm2bids(source_dir, bids_dir, bids_config, subject, session, nordic_config, nifti)
-    remove_unusable_runs(xml_path, bids_dir, subject)
+    run_dcm2bids(subject=subject, 
+                 session=session,
+                 source_dir=source_dir, 
+                 bids_output_dir=bids_dir, 
+                 config_file=bids_config, 
+                 nordic_config=nordic_config, 
+                 nifti=nifti)
+    
+    remove_unusable_runs(xml_file=xml_path, 
+                         bids_data_path=bids_dir, 
+                         subject=subject)
 
 
 if __name__ == "__main__":

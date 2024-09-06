@@ -8,7 +8,7 @@ import datetime
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file
+from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -30,7 +30,9 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
         if want_to_delete:
             logger.debug("removing the old working directory and its contents")
             shutil.rmtree(dir_to_make)
-    dir_to_make.mkdir(exist_ok=True)
+        else:
+            return dir_to_make
+    dir_to_make.mkdir()
     logger.info(f"creating a new working directory at the path: {dir_to_make}")
     return dir_to_make
 
@@ -191,6 +193,7 @@ def main():
     add_file_handler(logger, log_path)
 
     if args.debug:
+        flags.debug = True
         logger.setLevel(logging.DEBUG)
 
     logger.info("Starting oceanproc...")
@@ -256,7 +259,8 @@ def main():
             ses=args.session,
             fd_thresh=args.fd_spike_threshold
         )
-
+    
+    logger.info("\n")
     logger.info("####### [DONE] Finished all processing, exiting now #######")
 
     
