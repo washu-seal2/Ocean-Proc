@@ -17,7 +17,7 @@ import json
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
-from ..utils import exit_program_early, make_option, add_file_handler, default_log_format, export_args_to_file
+from ..utils import exit_program_early, add_file_handler, default_log_format, export_args_to_file, flags, debug_logging, log_linebreak
 import logging
 import datetime
 from textwrap import dedent
@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger()
 
 
-
+@debug_logging(this_logger=logger)
 def load_data(func_file: str|Path,
               brain_mask: str = None,
               need_tr: bool = False) -> np.ndarray:
@@ -61,6 +61,7 @@ def load_data(func_file: str|Path,
             # return None 
 
 
+@debug_logging(this_logger=logger)
 def create_image(data: npt.ArrayLike,
                  brain_mask: str = None,
                  tr: float = None,
@@ -144,6 +145,7 @@ def create_hrf(time, time_to_peak=5, undershoot_dur=12):
     return hrf_timeseries
 
 
+@debug_logging(this_logger=logger)
 def hrf_convolve_features(features: pd.DataFrame,
                           column_names: list = None,
                           time_col: str = 'index',
@@ -217,6 +219,7 @@ def find_nearest(array, value):
     return(array[idx])
 
 
+@debug_logging(this_logger=logger)
 def make_noise_ts(confounds_file: str,
                   confounds_columns: list,
                   demean: bool = False,
@@ -270,6 +273,7 @@ def make_noise_ts(confounds_file: str,
 
 
 #TODO: maybe write a validator for the input task file?
+@debug_logging(this_logger=logger)
 def events_to_design(func_data: npt.ArrayLike,
                      tr: float,
                      event_file: str | Path,
@@ -390,6 +394,7 @@ def events_to_design(func_data: npt.ArrayLike,
     return (events_long, conditions)
 
 
+@debug_logging(this_logger=logger)
 def bandpass_filter(func_data: npt.ArrayLike,
                     tr: float,
                     high_cut: float = 0.1,
@@ -430,6 +435,7 @@ def bandpass_filter(func_data: npt.ArrayLike,
     return filtered_data
 
 
+@debug_logging(this_logger=logger)
 def nuisance_regression(func_data: npt.ArrayLike,
                         noise_matrix: pd.DataFrame,
                         **kwargs):
@@ -460,6 +466,7 @@ def nuisance_regression(func_data: npt.ArrayLike,
     return func_data - est_values
 
 
+@debug_logging(this_logger=logger)
 def create_final_design(data_list: list[npt.ArrayLike],
                         design_list: list[pd.DataFrame],
                         noise_list: list[pd.DataFrame] = None,
@@ -508,6 +515,7 @@ def create_final_design(data_list: list[npt.ArrayLike],
     return (final_data, final_design)
 
 
+@debug_logging(this_logger=logger)
 def massuni_linGLM(func_data: npt.ArrayLike,
                    design_matrix: pd.DataFrame):
     """
@@ -632,7 +640,8 @@ def main():
     if args.export_args:
         try:
             assert args.export_args.parent.exists() and args.export_args.suffix, "Argument export path must be a file path in a directory that exists"
-            logger.info(f"####### Exporting Configuration Arguments to: '{args.export_args}' #######")
+            log_linebreak()
+            logger.info(f"####### Exporting Configuration Arguments to: '{args.export_args}' #######\n")
             export_args_to_file(args, config_arguments, args.export_args)
         except Exception as e:
             logger.exception(e)
@@ -648,6 +657,7 @@ def main():
     add_file_handler(logger, log_path)
     
     if args.debug:
+        flags.debug = True
         logger.setLevel(logging.DEBUG)
 
     logger.info("Starting oceanfla...")
@@ -688,6 +698,7 @@ def main():
         noise_df_list = []
 
         for i, run_map in enumerate(file_map_list):
+            log_linebreak()
             logger.info(f"processing bold file: {run_map['bold']}")
             logger.info(f" loading in BOLD data")
 
@@ -715,7 +726,7 @@ def main():
                 fir_list=args.fir_vars if args.fir_vars else None,
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
-                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if args.debug else None
+                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if flags.debug else None
             )
 
             logger.info(" reading confounds file and creating nuisance matrix")
@@ -742,7 +753,7 @@ def main():
                 run_map["data_resids"] = func_data_residuals
                 func_data = func_data_residuals
 
-                if args.debug:
+                if flags.debug:
                     nrimg, img_suffix = create_image(
                         data=func_data,
                         brain_mask=args.brain_mask,
@@ -779,7 +790,7 @@ def main():
                 )
                 run_map["data_filtered"] = func_data_filtered
                 func_data = func_data_filtered
-                if args.debug: 
+                if flags.debug: 
                     cleanimg, img_suffix = create_image(
                         data=func_data,
                         brain_mask=args.brain_mask,
@@ -801,7 +812,7 @@ def main():
                 func_data = func_data_detrend
                 if args.fd_censoring:
                     func_data = func_data[sample_mask, :]
-                if args.debug: 
+                if flags.debug: 
                     cleanimg, img_suffix = create_image(
                         data=func_data,
                         brain_mask=args.brain_mask,
@@ -816,8 +827,7 @@ def main():
                     )
             elif args.fd_censoring:
                 func_data = func_data[sample_mask, :]
-            
-
+                
 
             assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
             if not args.nuisance_regression:
@@ -830,8 +840,8 @@ def main():
             assert func_data.shape[0] == len(events_df), "The functional data and the design matrix have a different number of timepoints"
             func_data_list.append(func_data)
             design_df_list.append(events_df)
-            
-            
+        
+        log_linebreak()
         logger.info("concatenating run level BOLD data and design matrices for GLM")
         final_func_data, final_design_df = create_final_design(
             data_list=func_data_list,

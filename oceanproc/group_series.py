@@ -9,11 +9,12 @@ import argparse
 import re
 from pathlib import Path
 import xml.etree.ElementTree as et
-from .utils import exit_program_early
+from .utils import exit_program_early, debug_logging, log_linebreak
 import logging
 
 logger = logging.getLogger(__name__)
 
+@debug_logging(this_logger=logger)
 def get_locals_from_xml(xml_path: Path) -> set:
     """
     Read in the xml file to find the localizers.
@@ -39,6 +40,7 @@ def get_locals_from_xml(xml_path: Path) -> set:
     return sorted(localizers)
 
 
+@debug_logging(this_logger=logger)
 def get_func_from_bids(bids_path: Path,
                        localizers: set[int],
                        json_dict: defaultdict[list],
@@ -77,6 +79,7 @@ def get_func_from_bids(bids_path: Path,
 
 
 # Read in the json for the field maps from the bids dir
+@debug_logging(this_logger=logger)
 def get_fmap_from_bids(bids_path: Path,
                        localizers: set[int],
                        json_dict: defaultdict[list],
@@ -114,6 +117,7 @@ def get_fmap_from_bids(bids_path: Path,
                 groupings[i][direction].add(series_num)
 
 
+@debug_logging(this_logger=logger)
 def map_fmap_to_func(xml_path: Path,
                      bids_dir_path: Path):
     """
@@ -124,7 +128,8 @@ def map_fmap_to_func(xml_path: Path,
     :param bids_dir_path: path to BIDS-compliant session directory
     :type bids_dir_path: pathlib.Path
     """
-    logger.info("####### Pairing field maps to functional runs #######")
+    log_linebreak()
+    logger.info("####### Pairing field maps to functional runs #######\n")
 
     if not xml_path.is_file():
         exit_program_early(f"Session xml file {xml_path} does not exist.")
@@ -132,12 +137,18 @@ def map_fmap_to_func(xml_path: Path,
         exit_program_early(f"Session bids dicrectory {bids_dir_path} does not exist.")
     series_json = defaultdict(list)
 
-    locals_series = get_locals_from_xml(xml_path)
+    locals_series = get_locals_from_xml(xml_path=xml_path)
     logger.info(f"Localizers: {locals_series}")
 
     groups = [{"task":set(), "fmapAP": set(), "fmapPA": set()} for _ in locals_series]
-    get_func_from_bids(bids_dir_path, locals_series, series_json, groups)
-    get_fmap_from_bids(bids_dir_path, locals_series, series_json, groups)
+    get_func_from_bids(bids_path=bids_dir_path, 
+                       localizers=locals_series, 
+                       json_dict=series_json, 
+                       groupings=groups)
+    get_fmap_from_bids(bids_path=bids_dir_path, 
+                       localizers=locals_series, 
+                       json_dict=series_json, 
+                       groupings=groups)
     logger.info(f"Localizer groups: {groups}") 
 
     for group in groups:

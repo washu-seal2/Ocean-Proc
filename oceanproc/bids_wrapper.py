@@ -106,12 +106,13 @@ def run_dcm2bids(subject:str,
     
     tmp_path = bids_output_dir / f"tmp_dcm2bids/sub-{subject}_ses-{session}"
     
-    def clean_up():
+    def clean_up(quiet=False):
         try:
             logger.debug(f"removing the temporary directory used by dcm2bids: {tmp_path}")
             shutil.rmtree(tmp_path)
         except Exception:
-            logger.warning(f"There was a problem deleting the temporary directory at {tmp_path}")
+            if not quiet:
+                logger.warning(f"There was a problem deleting the temporary directory at {tmp_path}")
     
     if (path_that_exists := bids_output_dir/f"sub-{subject}/ses-{session}").exists():
         ans = prompt_user_continue(dedent(f"""
@@ -122,12 +123,12 @@ def run_dcm2bids(subject:str,
         if ans:
             logger.debug("removing the old BIDS raw data directory and its contents")
             shutil.rmtree(path_that_exists)
-            clean_up()
         else:
             return
         
     nifti_path = None    
     if not nifti:
+        clean_up(quiet=True)
         run_dcm2niix(source_dir=source_dir, 
                      tmp_nifti_dir=tmp_path)
         nifti_path = tmp_path
@@ -246,10 +247,10 @@ def run_dcm2niix(source_dir:Path,
     files_to_remove = list(tmp_nifti_dir.glob("*a.nii.gz")) + list(tmp_nifti_dir.glob("*a.json"))
     if flags.debug:
         unused_files_dir = tmp_nifti_dir.parent / f"{tmp_nifti_dir.name}_unused"
-        unused_files_dir.mkdir()
+        unused_files_dir.mkdir(exist_ok=True)
         logger.debug(f"moving some unused files and files created from shortened runs to directory {unused_files_dir}")
         for f in files_to_remove:
-            shutil.move(f, unused_files_dir)
+            shutil.move(f.resolve(), (unused_files_dir/f.name).resolve())
     else:
         logger.info(f"removing some unused files and files created from shortened runs :\n  {[str(f) for f in files_to_remove]}")
         for f in files_to_remove:

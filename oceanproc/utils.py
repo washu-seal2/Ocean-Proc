@@ -11,22 +11,41 @@ default_log_format = "%(levelname)s:%(module)s: %(message)s"
 flags = SimpleNamespace(debug = False)
 
 def takes_arguments(decorator):
+    """
+    A meta-decorator to use on decorators that take in other
+    arguments than just he function they are applied to
+    """
     def wrapper(*args, **kwargs):
         def replacement(func):
             return decorator(func, *args, **kwargs)
         return replacement
     return wrapper
 
+
 @takes_arguments
 def debug_logging(func, this_logger=None):
+    """
+    A decorator function that debug logs a function call
+    and the arguments used in the call. Can log with a 
+    specified logger or this module's logger if one is 
+    not supplied
+
+    :param func: function this decorator is applied to
+    :type func: function
+    :param this_logger: a logger to use for logging the function call
+    :type this_logger: logging.Logger object
+    :return: a function that is the input function wrapped by this decorator
+    :rtype: function
+    """
     logger_to_use = this_logger if this_logger else logger
     def inner(*args, **kwargs):
         log_linebreak()
         logger_to_use.debug(
-            f"calling - {func.__module__}:{func.__name__}({', '.join([str(a) for a in args] + [f'{k}={v}' for k,v in kwargs.items()])})"
+            f"calling - {func.__module__}:{func.__name__}({', '.join([str(a) for a in args] + [f'{k}={v}' for k,v in kwargs.items()])})\n"
         )
         return func(*args, **kwargs)
     return inner
+
 
 def exit_program_early(msg:str, 
                        exit_func=None):
@@ -58,9 +77,10 @@ def prompt_user_continue(msg:str) -> bool:
     """
     prompt_msg = f"{msg} \n\t---(press 'y' for yes, other input will mean no)"
     user_continue = input(prompt_msg+"\n")
+    ans = (user_continue.lower() == "y")
     logger.debug(f"User Prompt: {prompt_msg}")
-    logger.debug(f"User Response:  {user_continue}")
-    return user_continue.lower() == "y"
+    logger.debug(f"User Response:  {user_continue} ({ans})")
+    return ans
 
 
 def make_option(value, 

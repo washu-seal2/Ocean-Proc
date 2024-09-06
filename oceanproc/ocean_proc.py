@@ -8,7 +8,7 @@ import datetime
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags
+from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO,
                     format=default_log_format)
 logger = logging.getLogger() 
 
+@debug_logging(this_logger=logger)
 def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     dir_to_make = dir_path / f"sub-{subject}_ses-{session}"
     if dir_to_make.exists():
@@ -37,6 +38,7 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     return dir_to_make
 
 
+@debug_logging(this_logger=logger)
 def run_fmri_prep(subject:str,
                   bids_path:Path,
                   derivs_path:Path,
@@ -97,8 +99,10 @@ def run_fmri_prep(subject:str,
     except RuntimeError as e:
         prepare_subprocess_logging(logger, stop=True)
         logger.exception(e, stack_info=True) 
-        exit_program_early("Program 'fmriprep-docker' has run into an error.", clean_up)
-    clean_up()
+        exit_program_early("Program 'fmriprep-docker' has run into an error.", 
+                           None if flags.debug else clean_up)
+    if not flags.debug:
+        clean_up()
     
 
 
@@ -203,7 +207,9 @@ def main():
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f" {k} : {v}")
 
-    args.work_dir = make_work_directory(args.work_dir, args.subject, args.session)
+    args.work_dir = make_work_directory(dir_path=args.work_dir, 
+                                        subject=args.subject, 
+                                        session=args.session)
 
     ##### Convert raw DICOMs to BIDS structure #####
     if not args.skip_dcm2bids:
