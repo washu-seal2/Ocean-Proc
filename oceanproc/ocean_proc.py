@@ -8,7 +8,7 @@ import datetime
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging
+from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging, log_linebreak
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -61,6 +61,7 @@ def run_fmri_prep(subject:str,
     """
     clean_up = lambda : shutil.rmtree(remove_work_folder) if remove_work_folder else None
 
+    log_linebreak()
     logger.info("####### Starting fMRIPrep #######")
     if not bids_path.exists():
         exit_program_early(f"Bids path {bids_path} does not exist.")
@@ -266,7 +267,7 @@ def main():
             fd_thresh=args.fd_spike_threshold
         )
     
-    logger.info("\n")
+    log_linebreak()
     logger.info("####### [DONE] Finished all processing, exiting now #######")
 
     

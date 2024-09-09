@@ -37,6 +37,8 @@ def debug_logging(func, this_logger=None):
     :return: a function that is the input function wrapped by this decorator
     :rtype: function
     """
+    print(this_logger)
+    print(logger)
     logger_to_use = this_logger if this_logger else logger
     def inner(*args, **kwargs):
         log_linebreak()
@@ -61,7 +63,7 @@ def exit_program_early(msg:str,
 
     """
     log_linebreak()
-    logger.warning(f"---[ERROR]: {msg} \nExiting the program now...\n")
+    logger.error(f"---[ERROR]: {msg} \nExiting the program now...\n")
     if exit_func and callable(exit_func):
         exit_func()
     sys.exit(1)
