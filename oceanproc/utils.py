@@ -13,7 +13,7 @@ flags = SimpleNamespace(debug = False)
 def takes_arguments(decorator):
     """
     A meta-decorator to use on decorators that take in other
-    arguments than just he function they are applied to
+    arguments than just the function they are applied to
     """
     def wrapper(*args, **kwargs):
         def replacement(func):
@@ -22,8 +22,7 @@ def takes_arguments(decorator):
     return wrapper
 
 
-@takes_arguments
-def debug_logging(func, this_logger=None):
+def debug_logging(func):
     """
     A decorator function that debug logs a function call
     and the arguments used in the call. Can log with a 
@@ -37,12 +36,9 @@ def debug_logging(func, this_logger=None):
     :return: a function that is the input function wrapped by this decorator
     :rtype: function
     """
-    print(this_logger)
-    print(logger)
-    logger_to_use = this_logger if this_logger else logger
     def inner(*args, **kwargs):
         log_linebreak()
-        logger_to_use.debug(
+        logger.debug(
             f"calling - {func.__module__}:{func.__name__}({', '.join([str(a) for a in args] + [f'{k}={v}' for k,v in kwargs.items()])})\n"
         )
         return func(*args, **kwargs)

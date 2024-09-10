@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger()
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def load_data(func_file: str|Path,
               brain_mask: str = None,
               need_tr: bool = False) -> np.ndarray:
@@ -61,7 +61,7 @@ def load_data(func_file: str|Path,
             # return None 
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def create_image(data: npt.ArrayLike,
                  brain_mask: str = None,
                  tr: float = None,
@@ -145,7 +145,7 @@ def create_hrf(time, time_to_peak=5, undershoot_dur=12):
     return hrf_timeseries
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def hrf_convolve_features(features: pd.DataFrame,
                           column_names: list = None,
                           time_col: str = 'index',
@@ -219,7 +219,7 @@ def find_nearest(array, value):
     return(array[idx])
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def make_noise_ts(confounds_file: str,
                   confounds_columns: list,
                   demean: bool = False,
@@ -273,7 +273,7 @@ def make_noise_ts(confounds_file: str,
 
 
 #TODO: maybe write a validator for the input task file?
-@debug_logging(this_logger=logger)
+@debug_logging
 def events_to_design(func_data: npt.ArrayLike,
                      tr: float,
                      event_file: str | Path,
@@ -394,7 +394,7 @@ def events_to_design(func_data: npt.ArrayLike,
     return (events_long, conditions)
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def bandpass_filter(func_data: npt.ArrayLike,
                     tr: float,
                     high_cut: float = 0.1,
@@ -435,7 +435,7 @@ def bandpass_filter(func_data: npt.ArrayLike,
     return filtered_data
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def nuisance_regression(func_data: npt.ArrayLike,
                         noise_matrix: pd.DataFrame,
                         **kwargs):
@@ -466,7 +466,7 @@ def nuisance_regression(func_data: npt.ArrayLike,
     return func_data - est_values
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def create_final_design(data_list: list[npt.ArrayLike],
                         design_list: list[pd.DataFrame],
                         noise_list: list[pd.DataFrame] = None,
@@ -515,7 +515,7 @@ def create_final_design(data_list: list[npt.ArrayLike],
     return (final_data, final_design)
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def massuni_linGLM(func_data: npt.ArrayLike,
                    design_matrix: pd.DataFrame):
     """

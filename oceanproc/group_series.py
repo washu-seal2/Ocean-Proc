@@ -14,7 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def get_locals_from_xml(xml_path: Path) -> set:
     """
     Read in the xml file to find the localizers.
@@ -40,7 +40,7 @@ def get_locals_from_xml(xml_path: Path) -> set:
     return sorted(localizers)
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def get_func_from_bids(bids_path: Path,
                        localizers: set[int],
                        json_dict: defaultdict[list],
@@ -79,7 +79,7 @@ def get_func_from_bids(bids_path: Path,
 
 
 # Read in the json for the field maps from the bids dir
-@debug_logging(this_logger=logger)
+@debug_logging
 def get_fmap_from_bids(bids_path: Path,
                        localizers: set[int],
                        json_dict: defaultdict[list],
@@ -117,7 +117,7 @@ def get_fmap_from_bids(bids_path: Path,
                 groupings[i][direction].add(series_num)
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def map_fmap_to_func(xml_path: Path,
                      bids_dir_path: Path):
     """

@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO,
                     format=default_log_format)
 logger = logging.getLogger() 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     dir_to_make = dir_path / f"sub-{subject}_ses-{session}"
     if dir_to_make.exists():
@@ -38,7 +38,7 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     return dir_to_make
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def run_fmri_prep(subject:str,
                   bids_path:Path,
                   derivs_path:Path,

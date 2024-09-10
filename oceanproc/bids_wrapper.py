@@ -17,7 +17,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
     """
     Will remove unusable scans from list of scans after dcm2bids has run.
@@ -69,7 +69,7 @@ def remove_unusable_runs(xml_file:Path, bids_data_path:Path, subject:str):
             os.remove(p_nii) 
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def run_dcm2bids(subject:str, 
                  session:str,
                  source_dir:Path, 
@@ -196,7 +196,7 @@ def run_dcm2bids(subject:str,
         clean_up()
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def run_dcm2niix(source_dir:Path, 
                  tmp_nifti_dir:Path,
                  clean_up_func=None):
@@ -257,7 +257,7 @@ def run_dcm2niix(source_dir:Path,
             os.remove(f)
     
     
-@debug_logging(this_logger=logger)
+@debug_logging
 def dicom_to_bids(subject:str, 
                   session:str, 
                   source_dir:Path, 

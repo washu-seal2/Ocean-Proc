@@ -27,7 +27,7 @@ def find_nearest(array, value):
     return(array[idx])
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def make_events_long(bold_run:Path, event_file:Path, output_file:Path, tr:float):
     """
     Takes and event file and a funtional run and creates a long formatted events file
@@ -61,7 +61,7 @@ def make_events_long(bold_run:Path, event_file:Path, output_file:Path, tr:float)
     events_long.to_csv(output_file)
 
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def append_to_confounds(confounds_file:Path, fd_thresh:float):
     """
     Makes motion outlier regressors based on the framewise
@@ -84,7 +84,7 @@ def append_to_confounds(confounds_file:Path, fd_thresh:float):
     conf_df.to_csv(confounds_file, sep="\t")
     
 
-@debug_logging(this_logger=logger)
+@debug_logging
 def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:str, fd_thresh:float):
     """
     Facilitates the creation of a long formatted events file
