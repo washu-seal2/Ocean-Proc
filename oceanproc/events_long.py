@@ -3,7 +3,7 @@ import numpy as np
 import nibabel as nib
 import json
 import os
-from .utils import exit_program_early
+from .utils import exit_program_early, debug_logging, log_linebreak
 from glob import glob
 from pathlib import Path
 import logging
@@ -27,6 +27,7 @@ def find_nearest(array, value):
     return(array[idx])
 
 
+@debug_logging
 def make_events_long(bold_run:Path, event_file:Path, output_file:Path, tr:float):
     """
     Takes and event file and a funtional run and creates a long formatted events file
@@ -60,6 +61,7 @@ def make_events_long(bold_run:Path, event_file:Path, output_file:Path, tr:float)
     events_long.to_csv(output_file)
 
 
+@debug_logging
 def append_to_confounds(confounds_file:Path, fd_thresh:float):
     """
     Makes motion outlier regressors based on the framewise
@@ -82,6 +84,7 @@ def append_to_confounds(confounds_file:Path, fd_thresh:float):
     conf_df.to_csv(confounds_file, sep="\t")
     
 
+@debug_logging
 def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:str, fd_thresh:float):
     """
     Facilitates the creation of a long formatted events file
@@ -100,8 +103,8 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
     :type fd_thresh: float
     
     """
-
-    logger.info("####### Creating long formatted event files ########")
+    log_linebreak()
+    logger.info("####### Creating long formatted event files ########\n")
 
     bids_func = bids_path / f"sub-{sub}/ses-{ses}/func"
     derivs_func = derivs_path / f"sub-{sub}/ses-{ses}/func"
@@ -137,8 +140,12 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
             tr = jd["RepetitionTime"]
 
         event_file_out = derivs_func / f"sub-{sub}_ses-{ses}_task-{task}_{f'run-{run}' if run else ''}_desc-events_long.csv"
-        make_events_long(bold_file, etf, event_file_out, tr)
-        append_to_confounds(confounds_file, fd_thresh)
+        make_events_long(bold_run=bold_file, 
+                         event_file=etf, 
+                         output_file=event_file_out, 
+                         tr=tr)
+        append_to_confounds(confounds_file=confounds_file, 
+                            fd_thresh=fd_thresh)
         
 
 

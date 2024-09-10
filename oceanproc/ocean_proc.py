@@ -8,7 +8,7 @@ import datetime
 from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file
+from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging, log_linebreak
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO,
                     format=default_log_format)
 logger = logging.getLogger() 
 
+@debug_logging
 def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     dir_to_make = dir_path / f"sub-{subject}_ses-{session}"
     if dir_to_make.exists():
@@ -30,11 +31,14 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
         if want_to_delete:
             logger.debug("removing the old working directory and its contents")
             shutil.rmtree(dir_to_make)
-    dir_to_make.mkdir(exist_ok=True)
+        else:
+            return dir_to_make
+    dir_to_make.mkdir()
     logger.info(f"creating a new working directory at the path: {dir_to_make}")
     return dir_to_make
 
 
+@debug_logging
 def run_fmri_prep(subject:str,
                   bids_path:Path,
                   derivs_path:Path,
@@ -57,6 +61,7 @@ def run_fmri_prep(subject:str,
     """
     clean_up = lambda : shutil.rmtree(remove_work_folder) if remove_work_folder else None
 
+    log_linebreak()
     logger.info("####### Starting fMRIPrep #######")
     if not bids_path.exists():
         exit_program_early(f"Bids path {bids_path} does not exist.")
@@ -95,8 +100,10 @@ def run_fmri_prep(subject:str,
     except RuntimeError as e:
         prepare_subprocess_logging(logger, stop=True)
         logger.exception(e, stack_info=True) 
-        exit_program_early("Program 'fmriprep-docker' has run into an error.", clean_up)
-    clean_up()
+        exit_program_early("Program 'fmriprep-docker' has run into an error.", 
+                           None if flags.debug else clean_up)
+    if not flags.debug:
+        clean_up()
     
 
 
@@ -191,6 +198,7 @@ def main():
     add_file_handler(logger, log_path)
 
     if args.debug:
+        flags.debug = True
         logger.setLevel(logging.DEBUG)
 
     logger.info("Starting oceanproc...")
@@ -200,7 +208,9 @@ def main():
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f" {k} : {v}")
 
-    args.work_dir = make_work_directory(args.work_dir, args.subject, args.session)
+    args.work_dir = make_work_directory(dir_path=args.work_dir, 
+                                        subject=args.subject, 
+                                        session=args.session)
 
     ##### Convert raw DICOMs to BIDS structure #####
     if not args.skip_dcm2bids:
@@ -256,7 +266,8 @@ def main():
             ses=args.session,
             fd_thresh=args.fd_spike_threshold
         )
-
+    
+    log_linebreak()
     logger.info("####### [DONE] Finished all processing, exiting now #######")
 
     
