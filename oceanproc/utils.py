@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
 
-default_log_format = "%(levelname)s:%(module)s: %(message)s"
+default_log_format = "%(levelname)s:%(asctime)s:%(module)s: %(message)s"
 
 flags = SimpleNamespace(debug = False)
 
