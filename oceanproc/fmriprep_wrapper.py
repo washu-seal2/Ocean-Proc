@@ -16,7 +16,7 @@ import os
 import copy
 
 logger = logging.getLogger(__name__)
-
+plt.set_loglevel("warning")
 
 @debug_logging
 def run_fmri_prep(subject:str,
@@ -42,7 +42,7 @@ def run_fmri_prep(subject:str,
     clean_up = lambda : shutil.rmtree(remove_work_folder) if remove_work_folder else None
 
     log_linebreak()
-    logger.info("####### Starting fMRIPrep #######")
+    logger.info("####### Starting fMRIPrep #######\n")
     if not bids_path.exists():
         exit_program_early(f"Bids path {bids_path} does not exist.")
     elif not derivs_path.exists():
@@ -108,10 +108,10 @@ def add_fd_plot_to_report(subject:str,
 
     for p in [func_path, figures_path, report_path]:
         if not p.exists():
-            exit_program_early(f"Path {str(p)} does not exist.")
+            exit_program_early(f"Expected Path {str(p)} does not exist.")
     
     log_linebreak()
-    logger.info("####### Appending FD Plots to fMRIPrep Report #######")
+    logger.info("####### Appending FD Plots to fMRIPrep Report #######\n")
 
     logger.debug(f"parsing the fMRIPrep html report file: {report_path}")
     report_file = open(report_path, "r")
@@ -136,19 +136,21 @@ def add_fd_plot_to_report(subject:str,
             n_frames = len(confound_df["framewise_displacement"])
             x_vals = np.arange(0, n_frames*tr, tr)
             mean_fd = np.mean(confound_df["framewise_displacement"])
-            fd_thresh = 0.9
+            func_thresh = 0.9
+            rest_thresh = 0.2
 
             # plot the framewise displacement
             fig, ax = plt.subplots(1,1, figsize=(15,5))
             # ax.set_ylabel("Displacement (mm)")
             ax.set_xlabel("Time (sec)")
             ax.plot(x_vals, confound_df["framewise_displacement"], label="FD Trace")                    
-            ax.plot(x_vals, [fd_thresh]*n_frames, label=f"Threshold: {fd_thresh}")
+            ax.plot(x_vals, [func_thresh]*n_frames, label=f"Threshold: {func_thresh}")
+            ax.plot(x_vals, [rest_thresh]*n_frames, label=f"Threshold: {rest_thresh}")
             ax.plot(x_vals, [mean_fd]*n_frames, label=f"Mean: {round(mean_fd,2)}")         
             ax.set_xlim(0, (n_frames*tr))                                                                              
-            ax.set_ylim(0, 3)
+            ax.set_ylim(0, 1.5)
             ax.legend(loc="upper left")
-            plot_path = figures_path / f"sub-3000_ses-01_task-{task}_run-{run}_desc-fd-trace.svg"
+            plot_path = figures_path / f"sub-{subject}_ses-{session}_task-{task}_run-{run}_desc-fd-trace.svg"
             fig.savefig(plot_path, bbox_inches="tight", format="svg", pad_inches=0.2)
             logger.debug(f" saved the fd plot figure for run-{run} to path: {plot_path}")
 
@@ -177,7 +179,7 @@ def add_fd_plot_to_report(subject:str,
         except Exception as e:
             logger.warning(f"Error generating the scaled FD plot for confound file: {f}")
 
-    logger.debug("writing the edited html to the report file")
+    logger.info("writing the edited html to the report file")
     with open(report_path, "w") as f:
         f.write(soup.prettify())
 

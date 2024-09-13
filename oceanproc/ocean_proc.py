@@ -9,7 +9,7 @@ from .bids_wrapper import dicom_to_bids
 from .group_series import map_fmap_to_func
 from .fmriprep_wrapper import process_data
 from .events_long import create_events_and_confounds
-from .utils import exit_program_early, prompt_user_continue, make_option, prepare_subprocess_logging, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging, log_linebreak
+from .utils import exit_program_early, prompt_user_continue, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging, log_linebreak
 from .oceanparse import OceanParser
 import shlex
 import shutil
@@ -37,75 +37,6 @@ def make_work_directory(dir_path:Path, subject:str, session:str) -> Path:
     dir_to_make.mkdir()
     logger.info(f"creating a new working directory at the path: {dir_to_make}")
     return dir_to_make
-
-
-# @debug_logging
-# def run_fmri_prep(subject:str,
-#                   bids_path:Path,
-#                   derivs_path:Path,
-#                   option_chain:str,
-#                   remove_work_folder:Path=None):
-#     """
-#     Run fmriprep with parameters.
-
-#     :param subject: Name of subject (ex. if path contains 'sub-5000', subject='5000')
-#     :type subject: str
-#     :param bids_path: Path to BIDS-compliant raw data folder.
-#     :type bids_path: pathlib.Path
-#     :param derivs_path: Path to BIDS-compliant derivatives folder.
-#     :type derivs_path: pathlib.Path
-#     :param option_chain: String containing generated list of options built by make_option().
-#     :type option_chain: str
-#     :param remove_work_folder: Path to the working directory that will be deleted upon completion or error (default None)
-#     :type remove_work_folder: str
-#     :raise RuntimeError: If fmriprep throws an error, or exits with a non-zero exit code.
-#     """
-#     clean_up = lambda : shutil.rmtree(remove_work_folder) if remove_work_folder else None
-
-#     log_linebreak()
-#     logger.info("####### Starting fMRIPrep #######")
-#     if not bids_path.exists():
-#         exit_program_early(f"Bids path {bids_path} does not exist.")
-#     elif not derivs_path.exists():
-#         exit_program_early(f"Derivatives path {derivs_path} does not exist.")
-#     elif shutil.which('fmriprep-docker') == None:
-#         exit_program_early("Cannot locate program 'fmriprep-docker', make sure it is in your PATH.")
-
-    
-
-#     uid = Popen(["id", "-u"], stdout=PIPE).stdout.read().decode("utf-8").strip()
-#     gid = Popen(["id", "-g"], stdout=PIPE).stdout.read().decode("utf-8").strip()
-#     cifti_out_res = '91k'
-
-#     helper_command = shlex.split(f"""{shutil.which('fmriprep-docker')} 
-#                                  --user {uid}:{gid}
-#                                  --participant-label={subject}
-#                                  --cifti-output={cifti_out_res}
-#                                  --use-syn-sdc=warn
-#                                  {option_chain}
-#                                  {str(bids_path)}
-#                                  {str(derivs_path)}
-#                                  participant""")
-#     try:
-#         command_str = " ".join(helper_command)
-#         logger.info(f"Running fmriprep-docker with the following command: \n  {command_str} \n")
-#         prepare_subprocess_logging(logger)
-#         with Popen(helper_command, stdout=PIPE) as p:
-#             while p.poll() == None:
-#                 for line in p.stdout:
-#                     logger.info(line.decode("utf-8", "ignore"))
-#             prepare_subprocess_logging(logger, stop=True)
-#             p.kill()
-#             if p.poll() != 0:
-#                 raise RuntimeError("'fmriprep-docker' has ended with a non-zero exit code.")
-#     except RuntimeError as e:
-#         prepare_subprocess_logging(logger, stop=True)
-#         logger.exception(e, stack_info=True) 
-#         exit_program_early("Program 'fmriprep-docker' has run into an error.", 
-#                            None if flags.debug else clean_up)
-#     if not flags.debug:
-#         clean_up()
-    
 
 
 def main():
@@ -238,7 +169,6 @@ def main():
 
     ##### Run fMRIPrep #####
     all_opts = dict(args._get_kwargs())
-
     fmrip_options = {"work_dir", 
                      "fs_license", 
                      "fs_subjects_dir", 
@@ -246,7 +176,6 @@ def main():
                      "fd_spike_threshold", 
                      "anat_only",
                      "image"}
-    # fmrip_opt_chain = " ".join([make_option(all_opts[fo], key=fo, delimeter="=", convert_underscore=True) for fo in fmrip_options if fo in all_opts])
 
     if not args.skip_fmriprep:
         process_data(
@@ -254,7 +183,6 @@ def main():
             session=args.session,
             bids_path=args.bids_path,
             derivs_path=args.derivs_path,
-            # option_chain=fmrip_opt_chain,
             remove_work_folder=None if args.keep_work_dir else args.work_dir,
             **{o:all_opts[o] for o in fmrip_options}
         )
