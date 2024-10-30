@@ -671,7 +671,7 @@ def main():
     file_map_list = []
 
     try: 
-        bold_files = sorted(args.derivs_dir.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold*{args.bold_file_type}"))
+        bold_files = sorted(args.derivs_dir.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold{args.bold_file_type}"))
         assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
 
         for bold_path in bold_files:
