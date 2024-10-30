@@ -6,7 +6,7 @@ authors = ["Ramone Agard <agardr@wustl.edu>", "Joey Scanga <joeyscanga92@gmail.c
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 sphinx-rtd-theme = "^2.0.0"
 flask = "^3.0.3"
 asttokens = "^2.4.1"
