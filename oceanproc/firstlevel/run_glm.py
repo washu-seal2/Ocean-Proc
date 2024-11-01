@@ -567,7 +567,7 @@ def main():
     config_arguments.add_argument("--derivs_dir", "-d", type=Path, required=True,
                         help="Path to the BIDS formatted derivatives directory containing preprocessed outputs.")
     config_arguments.add_argument("--raw_bids", "-r", type=Path, required=True,
-                        help="Path to the BIDS formatted raw data directory for dataset.")
+                        help="Path to the BIDS formatted raw data directory for this dataset.")
     config_arguments.add_argument("--derivs_subfolder", "-ds", default="first_level",
                         help="The name of the subfolder in the derivatives directory where bids style outputs should be stored. The default is 'first_level'.")
     config_arguments.add_argument("--output_dir", "-o", type=Path,
