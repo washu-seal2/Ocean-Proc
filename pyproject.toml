@@ -17,6 +17,9 @@ scipy = ">=1.13.0"
 matplotlib = "^3.9.1"
 beautifulsoup4 = ">=4.12.0"
 numba = "^0.60.0"
+torch = "^2.5.1"
+torchvision = "^0.20.1"
+torchaudio = "^2.5.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
