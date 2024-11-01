@@ -565,13 +565,13 @@ def main():
     config_arguments.add_argument("--brain_mask", "-bm", type=Path,
                         help="If the bold file type is volumetric data, a brain mask must also be supplied.")
     config_arguments.add_argument("--derivs_dir", "-d", type=Path, required=True,
-                        help="Path to the BIDS formatted derivatives directory for this subject and session.")
+                        help="Path to the BIDS formatted derivatives directory containing preprocessed outputs.")
     config_arguments.add_argument("--raw_bids", "-r", type=Path, required=True,
-                        help="Path to the BIDS formatted raw data directory for this subject and session.")
+                        help="Path to the BIDS formatted raw data directory for dataset.")
     config_arguments.add_argument("--derivs_subfolder", "-ds", default="first_level",
-                        help="The subfolder in the derivatives directory where bids style outputs should be stored. The default is 'first_level'.")
+                        help="The name of the subfolder in the derivatives directory where bids style outputs should be stored. The default is 'first_level'.")
     config_arguments.add_argument("--output_dir", "-o", type=Path,
-                        help="Path to the directory to store the results of this analysis. Default is '[derivs_dir]/first_level/sub-[subject]/ses-[session]/func'")
+                        help="Alternate Path to a directory to store the results of this analysis. Default is '[derivs_dir]/first_level/'")
     config_arguments.add_argument("--fir", "-ff", type=int,
                         help="The number of frames to use in an FIR model.")
     config_arguments.add_argument("--fir_vars", nargs="*",
@@ -588,7 +588,7 @@ def main():
     config_arguments.add_argument("--fd_threshold", "-fd", type=float, default=0.9,
                         help="The framewise displacement threshold used when censoring high-motion frames")
     config_arguments.add_argument("--repetition_time", "-tr", type=float,
-                        help="Repetition time of the function runs. If it is not supplied, an attempt will be made to read it from the JSON sidecar file.")
+                        help="Repetition time of the function runs in seconds. If it is not supplied, an attempt will be made to read it from the JSON sidecar file.")
     config_arguments.add_argument("--detrend_data", "-dd", action="store_true", 
                         help="""Flag to demean and detrend the data before modeling. The default is to include
                         a mean and trend line into the nuisance matrix instead.""")
@@ -706,7 +706,7 @@ def main():
             if run_info:
                 run_info = f"run-{str(run_map['bold']).split('run-')[-1].split('_')[0]}_"
             else:
-                run_info = ''
+                run_info = f'run-{(i+1):02d}_'
 
             func_data, read_tr, read_header = load_data(
                 func_file=run_map['bold'], 
