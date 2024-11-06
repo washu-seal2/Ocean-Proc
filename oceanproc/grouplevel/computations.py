@@ -17,18 +17,42 @@ from .utils import set_device
     # residuals = y - (x @ beta_hat)
     # return (beta_hat, residuals)
 
+
 def ols_regression_over_dscalars(combined_dscalars: nib.cifti2.cifti2.Cifti2Image,
                                  design_mat: np.ndarray|torch.Tensor):
-    y = torch.from_numpy(combined_dscalars.get_fdata())
+    device = set_device()
+    y = torch.from_numpy(combined_dscalars.get_fdata(), device=device)  
     if isinstance(design_mat, np.ndarray):
         x = torch.from_numpy(design_mat)
     if not torch.is_tensor(x):
         raise TypeError("design_mat must be a torch tensor or numpy ndarray")
-    device = set_device()
-    y, x = y.to(device), x.to(device)
-    beta_hat = torch.linalg.inv(np.transpose(x) @ x) @ np.transpose(x) @ y
+    x = x.to(device)
+    beta_hat = torch.linalg.pinv(torch.transpose(x, 0, 1) @ x) @ torch.transpose(x, 0, 1) @ y
     residuals = y - (x @ beta_hat)
     return (beta_hat, residuals)
+
+
+def ttest_1samp_over_dscalars(combined_dscalars: nib.cifti2.cifti2.Cifti2Image,
+                              output_path: str,
+                              popmean: np.ndarray,
+                              alpha: float = 0.05,
+                              tails: int = 1):
+    assert tails in (1,2), "tails must be either 1 or 2"
+    assert alpha > 0 and alpha < 1, "alpha must be between 0 and 1"
+    device = set_device()
+    popmean = torch.from_numpy(popmean, device=device)
+    data = torch.from_numpy(combined_dscalars.get_fdata(), device=device)
+    n = data.shape[0]
+    df = n -1
+    sample_means = torch.mean(data, 0)
+    mean_differences = sample_means - popmean
+    standard_error = torch.std(data, 0) / (n**0.5)
+    t_mat = mean_differences / standard_error
+    t_mat = t_mat.to("cpu")
+    p_mat = tails * scipy.stats.t.sf(t_mat, 30)
+    img = combined_dscalars.__class__(p_mat, combined_dscalars.header)
+    nib.save(img, output_path)
+
 
 # @jit(nopython=True)
 # def ttest_1samp_over_dscalars(combined_dscalars: nib.cifti2.cifti2.Cifti2Image,
