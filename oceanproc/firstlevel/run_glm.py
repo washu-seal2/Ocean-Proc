@@ -667,7 +667,7 @@ def main():
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f" {k} : {v}")
         
-    model_type = "MixedModel" if args.fir and args.hrf else "FIR" if args.fir else "HRF" 
+    model_type = "Mixed" if args.fir and args.hrf else "FIR" if args.fir else "HRF" 
     file_map_list = []
 
     try: 
@@ -872,7 +872,7 @@ def main():
                     tr=tr,
                     header=img_header
                 )
-                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{c}{img_suffix}"
+                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{c}-frame-0{img_suffix}"
                 logger.info(f" saving betas for variable {c} to file: {beta_filename}")
                 nib.save(
                     beta_img,
@@ -885,13 +885,26 @@ def main():
                 for f in range(args.fir):
                     beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
                     beta_frames[f,:] = activation_betas[beta_column,:]
+                    beta_img, img_suffix = create_image(
+                        data=np.expand_dims(activation_betas[beta_column,:], axis=0),
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{condition}-frame-{f+1}{img_suffix}"
+                    logger.info(f" saving betas for variable {condition} frame {f+1} to file: {beta_filename}")
+                    nib.save(
+                        beta_img,
+                        beta_filename
+                    )
+
                 beta_img, img_suffix = create_image(
                     data=beta_frames,
                     brain_mask=args.brain_mask,
                     tr=tr,
                     header=img_header
                 )
-                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{model_type}activation-{condition}{img_suffix}"
+                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{condition}-concatenated{img_suffix}"
                 logger.info(f" saving betas for variable {condition} (all {args.fir} modeled frames) to file: {beta_filename}")
                 nib.save(
                     beta_img,
