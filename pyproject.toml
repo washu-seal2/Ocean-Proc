@@ -6,7 +6,7 @@ authors = ["Ramone Agard <agardr@wustl.edu>", "Joey Scanga <joeyscanga92@gmail.c
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 sphinx-rtd-theme = "^2.0.0"
 flask = "^3.0.3"
 asttokens = "^2.4.1"
@@ -16,11 +16,16 @@ nilearn = "^0.10.4"
 scipy = ">=1.13.0"
 matplotlib = "^3.9.1"
 beautifulsoup4 = ">=4.12.0"
+numba = "^0.60.0"
+torch = "^2.5.1"
+torchvision = "^0.20.1"
+torchaudio = "^2.5.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
 sphinx = "^7.3.7"
 twine = "^5.1.0"
+ipython = "^8.29.0"
 
 [tool.poetry.scripts]
 oceanproc = "oceanproc.ocean_proc:main"

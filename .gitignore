@@ -11,3 +11,5 @@ _build/
 *.pyc
 .doctrees/
 .jupyter_cache/
+# For testing dscalar_utils.py in grouplevel module
+dummy_dscalars/
