@@ -6,7 +6,7 @@ from pathlib import Path
 import logging
 import datetime
 from .bids_wrapper import dicom_to_bids
-from .group_series import map_fmap_to_func
+from .group_series import map_fmap_to_func, map_fmap_to_func_with_pairing_file
 from .fmriprep_wrapper import process_data
 from .events_long import create_events_and_confounds
 from .utils import exit_program_early, prompt_user_continue, default_log_format, add_file_handler, export_args_to_file, flags, debug_logging, log_linebreak
@@ -72,6 +72,9 @@ def main():
                         help="Flag to stop the deletion of the fMRIPrep working directory")
     session_arguments.add_argument("--debug", action="store_true",
                         help="Flag to run the program in debug mode for more verbose logging")
+    session_arguments.add_argument("--fmap_pairing_file",
+                                   help="Path to JSON containing info on how to pair fieldmaps to BOLD runs.",
+                                   type=Path)
 
     config_arguments.add_argument("--bids_path", "-b", type=Path, required=True,
                         help="The path to the directory containing the raw nifti data for all subjects, in BIDS format") 
@@ -161,10 +164,16 @@ def main():
     bids_session_dir = args.bids_path / f"sub-{args.subject}/ses-{args.session}"
 
     if not args.anat_only and not args.skip_fmap_pairing:
-        map_fmap_to_func(
-            xml_path=args.xml_path, 
-            bids_dir_path=bids_session_dir
-        )
+        if args.fmap_pairing_file:
+            map_fmap_to_func_with_pairing_file(
+                bids_session_dir,
+                args.fmap_pairing_file
+            )
+        else:
+            map_fmap_to_func(
+                xml_path=args.xml_path, 
+                bids_dir_path=bids_session_dir
+            )
 
 
     ##### Run fMRIPrep #####

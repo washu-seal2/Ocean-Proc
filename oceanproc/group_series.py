@@ -173,7 +173,7 @@ def map_fmap_to_func(xml_path: Path,
             map_pairings[pairing].append(t)
         logger.info(f"Field map pairings: {map_pairings}")
 
-        # add the list of task run files that are paried with each field map in their json files
+        # add the list of task run files that are paired with each field map in their json files
         for k,v in map_pairings.items():
             for s in k:
                 jd = series_json[s][0]
@@ -186,6 +186,28 @@ def map_fmap_to_func(xml_path: Path,
                 with open(fmap_file, "w") as out_file:
                     logger.debug(f"writing field map pairing information to file: {fmap_file}")
                     out_file.write(json.dumps(jd, indent=4))
+
+def map_fmap_to_func_with_pairing_file(bids_dir_path: Path,
+                                       pairing_json: Path):
+    log_linebreak()
+    logger.info("####### Pairing field maps to functional runs using pairing file #######\n")
+    with pairing_json.open() as f:
+        pairing_dict = json.load(f)
+    pairings_list = pairing_dict["pairings"]
+    for pairing in pairings_list:
+        fmap_jsons = bids_dir_path.glob(f"fmap/*{pairing['fmap']}*json")
+        func_paths = []
+        for func in pairing["func"]:
+            func_paths.extend(
+                [str(p) for p in bids_dir_path.parent.glob(f"*/func/*{func}*nii.gz")]
+            )
+        for fmap_json in fmap_jsons:
+            with fmap_json.open() as f:
+                fmap_dict = json.load(f)
+            fmap_dict["IntendedFor"] = func_paths
+            with fmap_json.open('w') as f:
+                json.dump(fmap_dict, f)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
