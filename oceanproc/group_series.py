@@ -190,7 +190,7 @@ def map_fmap_to_func(xml_path: Path,
 def map_fmap_to_func_with_pairing_file(bids_dir_path: Path,
                                        pairing_json: Path):
     log_linebreak()
-    for json_path in bids_dir_path.glob(f"fmap/*json"): # reset IntendedFor field in all fmap json
+    for json_path in bids_dir_path.glob("fmap/*json"): # reset IntendedFor field in all fmap json
         with open(json_path) as f:
             json_obj = json.load(f)
         json_obj["IntendedFor"] = []
