@@ -190,6 +190,12 @@ def map_fmap_to_func(xml_path: Path,
 def map_fmap_to_func_with_pairing_file(bids_dir_path: Path,
                                        pairing_json: Path):
     log_linebreak()
+    for json_path in bids_dir_path.glob(f"fmap/*json"): # reset IntendedFor field in all fmap json
+        with open(json_path) as f:
+            json_obj = json.load(f)
+        json_obj["IntendedFor"] = []
+        with open(json_path, "w") as f:
+            json.dump(json_obj, f, indent=4)
     logger.info("####### Pairing field maps to functional runs using pairing file #######\n")
     with pairing_json.open() as f:
         pairing_dict = json.load(f)
@@ -206,7 +212,7 @@ def map_fmap_to_func_with_pairing_file(bids_dir_path: Path,
                 fmap_dict = json.load(f)
             fmap_dict["IntendedFor"] = func_paths
             with fmap_json.open('w') as f:
-                json.dump(fmap_dict, f)
+                json.dump(fmap_dict, f, indent=4)
 
 
 if __name__ == "__main__":
