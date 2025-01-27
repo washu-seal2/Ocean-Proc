@@ -34,7 +34,7 @@ def ols_regression_over_dscalars(combined_dscalars: nib.cifti2.cifti2.Cifti2Imag
 
 def ttest_1samp_over_dscalars(combined_dscalars: nib.cifti2.cifti2.Cifti2Image,
                               output_path: str,
-                              popmean: np.ndarray,
+                              popmean: np.ndarray = 0,
                               alpha: float = 0.05,
                               tails: int = 1):
     assert tails in (1,2), "tails must be either 1 or 2"

@@ -891,8 +891,8 @@ def main():
                         tr=tr,
                         header=img_header
                     )
-                    beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{condition}-frame-{f+1}{img_suffix}"
-                    logger.info(f" saving betas for variable {condition} frame {f+1} to file: {beta_filename}")
+                    beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{condition}-frame-{f}{img_suffix}"
+                    logger.info(f" saving betas for variable {condition} frame {f} to file: {beta_filename}")
                     nib.save(
                         beta_img,
                         beta_filename

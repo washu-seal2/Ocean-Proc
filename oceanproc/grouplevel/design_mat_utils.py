@@ -27,14 +27,15 @@ def design_helper(bids_path: Path, output_file: Path):
             beta_files = sorted([f for f in ses_dir.glob("func/sub-*_ses-*_task-*_desc-*model-*-beta-*-frame-*.nii*") if f.is_file()])
             for file in beta_files:
                 name = file.name
-                underscore_split = name.split("_")
+                no_suffix = name.split(".")[0]
+                underscore_split = no_suffix.split("_")
                 sub = underscore_split[0].split("-")[-1]
                 ses = underscore_split[1].split("-")[-1]
-                task = underscore_split[2].split("-")[-1]
-                desc_split = underscore_split[4].split("-")
-                model = desc_split[desc_split.index("model") + 1]
-                beta = desc_split[desc_split.index("beta") + 1]
-                frame = desc_split[desc_split.index("frame") + 1].split(".")[0]
+                task = underscore_split[2].split("task-")[-1]
+                desc_split = [tk for part in underscore_split[3:] for tk in part.split("-")]
+                model = "-".join(desc_split[desc_split.index("model")+1 : desc_split.index("beta")])
+                beta = "-".join(desc_split[desc_split.index("beta")+1 : desc_split.index("frame")])
+                frame = int(desc_split[desc_split.index("frame")+1])
                 file_type = "surface" if name.split(".")[1] == "dscalar" else "volume"
                 entry_list.append(
                     {
@@ -49,6 +50,7 @@ def design_helper(bids_path: Path, output_file: Path):
                     }
                 )
     design_scaffold = pd.DataFrame(entry_list)
+    design_scaffold.sort_values(by=["sub","ses","task","model","file_type","beta","frame"], inplace=True)
     design_scaffold.to_csv(output_file, index=False)
 
 
