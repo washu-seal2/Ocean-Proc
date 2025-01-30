@@ -17,7 +17,8 @@ import json
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
-from ..utils import exit_program_early, add_file_handler, default_log_format, export_args_to_file, flags, debug_logging, log_linebreak
+from ..events_long import make_events_long
+from ..utils import exit_program_early, add_file_handler, default_log_format, export_args_to_file, flags, debug_logging, log_linebreak, load_data
 import logging
 import datetime
 from textwrap import dedent
@@ -37,28 +38,28 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger()
 
 
-@debug_logging
-def load_data(func_file: str|Path,
-              brain_mask: str = None,
-              need_tr: bool = False) -> np.ndarray:
-    tr = None
-    func_file = str(func_file)
-    if need_tr:
-        sidecar_file = func_file.split(".")[0] + ".json"
-        assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
-        with open(sidecar_file, "r") as f:
-            jd = json.load(f)
-            tr = jd["RepetitionTime"]
+# @debug_logging
+# def load_data(func_file: str|Path,
+#               brain_mask: str = None,
+#               need_tr: bool = False) -> np.ndarray:
+#     tr = None
+#     func_file = str(func_file)
+#     if need_tr:
+#         sidecar_file = func_file.split(".")[0] + ".json"
+#         assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
+#         with open(sidecar_file, "r") as f:
+#             jd = json.load(f)
+#             tr = jd["RepetitionTime"]
 
-    if func_file.endswith(".dtseries.nii") or func_file.endswith(".dscalar.nii"):
-        img = nib.load(func_file)
-        return (img.get_fdata(), tr, img.header)
-    elif func_file.endswith(".nii") or func_file.endswith(".nii.gz"):
-        if brain_mask:
-            return (nmask.apply_mask(func_file, brain_mask), tr, None)
-        else:
-            raise Exception("Volumetric data must also have an accompanying brain mask")
-            # return None 
+#     if func_file.endswith(".dtseries.nii") or func_file.endswith(".dscalar.nii"):
+#         img = nib.load(func_file)
+#         return (img.get_fdata(), tr, img.header)
+#     elif func_file.endswith(".nii") or func_file.endswith(".nii.gz"):
+#         if brain_mask:
+#             return (nmask.apply_mask(func_file, brain_mask), tr, None)
+#         else:
+#             raise Exception("Volumetric data must also have an accompanying brain mask")
+#             # return None 
 
 
 @debug_logging
@@ -228,13 +229,14 @@ def make_noise_ts(confounds_file: str,
                   volterra_expansion: int = None,
                   volterra_columns: list = None):
     select_columns = set(confounds_columns)
+    fd = "framewise_displacement"
     if volterra_columns:
         select_columns.update(volterra_columns)
     if spike_threshold:
         select_columns.add(fd)
     nuisance = pd.read_csv(confounds_file, delimiter='\t').loc[:,list(select_columns)]
-    if "framewise_displacement" in select_columns:
-        nuisance.loc[0, "framewise_displacement"] = 0
+    if fd in select_columns:
+        nuisance.loc[0, fd] = 0
 
     if demean: 
         nuisance["mean"] = 1
@@ -250,11 +252,11 @@ def make_noise_ts(confounds_file: str,
     if spike_threshold:
         b = 0
         for a in range(len(nuisance)):
-            if nuisance.loc[a,"framewise_displacement"] > spike_threshold:
+            if nuisance.loc[a,fd] > spike_threshold:
                 nuisance[f"spike{b}"] = 0
                 nuisance.loc[a, f"spike{b}"] = 1
                 b += 1
-        if fd not in confound_columns:
+        if fd not in confounds_columns:
                 nuisance.drop(columns=fd, inplace=True)
 
     if volterra_expansion and volterra_columns:
@@ -272,18 +274,138 @@ def make_noise_ts(confounds_file: str,
     return nuisance
 
 
+# #TODO: maybe write a validator for the input task file?
+# @debug_logging
+# def events_to_design(func_data: npt.ArrayLike,
+#                      tr: float,
+#                      event_file: str | Path,
+#                      fir: int = None,
+#                      hrf: tuple[int] = None,
+#                      fir_list: list[str] = None,
+#                      hrf_list: list[str] = None,
+#                      output_path: str = None):
+#     """
+#     Builds an initial design matrix from an event file. You can 
+#     convolve specified event types with an hemodynamic response function
+#     (HRF).
+
+#     The events are expected to be in a .tsv file, with the following columns:
+
+#     trial_type: a string representing the unique trial type. oceanfla gives you the 
+#         freedom to arrange these trial types in any way you want; they can represent 
+#         events on their own, combinations of concurrent events, etc. 
+#     onset: the onset time of an event
+#     duration: the duration of an event
+    
+#     Parameters
+#     ----------
+#     func_data: npt.ArrayLike
+#         A numpy array-like object representing functional data
+#     tr: float
+#         A float representing repetition time, the rate at 
+#         which single brain images are captured following 
+#         a radio frequency (RF) pulse
+#     event_file: str | Path
+#         .tsv file containing information about events, their onsets, and their durations (view the formatting of it above)
+#     fir: int = None
+#         An int denoting the order of an FIR filter
+#     hrf: tuple[int] = None
+#         A 2-length tuple, where hrf[0] denotes the time to the peak of an HRF, and hrf[1] denotes the duration of its "undershoot" after the peak.
+#     fir_list: list[str] = None
+#         A list of column names denoting which columns should have an FIR filter applied.
+#     hrf_list: list[str] = None
+#         A list of column names denoting which columns should be convolved with the HRF function defined in the hrf tuple.
+
+#     Returns
+#     -------
+#     (events_long, conditions): tuple
+#         A tuple containing the DataFrame with filtered/convolved columns and a list of unique trial names.
+#     """
+    
+#     if tr and tr <= 0:
+#         raise ValueError(f"tr must be greater than 0. Current tr: {tr}")
+#     if fir and fir <= 0:
+#         raise ValueError(f"fir value must be greater than 0. Current fir: {fir}")
+#     if hrf and not (len(hrf) == 2 and hrf[0] > 0 and hrf[1] > 0):
+#         raise ValueError(f"hrf tuple must contain two integers greater than 0. Current hrf tuple: {hrf}")
+#     # If both FIR and HRF are specified, we should have at least one list 
+#     # of columns for one of the categories specified.
+#     if (fir and hrf) and not (fir_list or hrf_list): 
+#         raise RuntimeError("Both FIR and HRF were specified, but you need to specify at least one list of columns (fir_list or hrf_list)")
+#     # fir_list and hrf_list must not have overlapping columns
+#     if (fir_list and hrf_list) and not set(fir_list).isdisjoint(hrf_list):
+#         raise RuntimeError("Both FIR and HRF lists of columns were specified, but they overlap.")
+#     duration = tr * func_data.shape[0]
+#     events_df = pd.read_csv(event_file, index_col=None, delimiter='\t')
+#     conditions = [s for s in np.unique(events_df.trial_type)] # unique trial types
+#     events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0, duration, tr))
+#     residual_conditions = conditions
+#     if (fir and hrf) and (bool(fir_list) ^ bool(hrf_list)): # Create other list if only one is specified
+#         if fir_list:
+#             hrf_list = [c for c in residual_conditions if c not in fir_list]
+#         elif hrf_list:
+#             fir_list = [c for c in residual_conditions if c not in hrf_list]
+#         assert set(hrf_list).isdisjoint(fir_list)
+        
+#     for e in events_df.index:
+#         i = find_nearest(events_long.index, events_df.loc[e,'onset'])
+#         events_long.loc[i, events_df.loc[e,'trial_type']] = 1
+#         if events_df.loc[e,'duration'] > tr:
+#             offset = events_df.loc[e,'onset'] + events_df.loc[e,'duration']
+#             j = find_nearest(events_long.index, offset)
+#             events_long.loc[i:j, events_df.loc[e,'trial_type']] = 1
+
+#     if fir:
+#         fir_conditions = residual_conditions
+#         if fir_list and len(fir_list) > 0:
+#             fir_conditions = [c for c in residual_conditions if c in fir_list]
+#         residual_conditions = [c for c in residual_conditions if c not in fir_conditions]
+        
+#         col_names = {c:c+"_00" for c in fir_conditions}
+#         events_long = events_long.rename(columns=col_names)
+#         fir_cols_to_add = dict()
+#         for c in fir_conditions:
+#             for i in range(1, fir):
+#                 fir_cols_to_add[f"{c}_{i:02d}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
+#                 # so events do not roll back around to the beginnin
+#                 fir_cols_to_add[f"{c}_{i:02d}"][:i] = 0
+#         events_long = pd.concat([events_long, pd.DataFrame(fir_cols_to_add, index=events_long.index)], axis=1)
+#         events_long = events_long.astype(int)
+#     if hrf:
+#         hrf_conditions = residual_conditions
+#         if hrf_list and len(hrf_list) > 0:
+#             hrf_conditions = [c for c in residual_conditions if c in hrf_list]
+#         residual_conditions = [c for c in residual_conditions if c not in hrf_conditions]
+        
+#         cfeats = hrf_convolve_features(features=events_long, 
+#                                        column_names=hrf_conditions,
+#                                        time_to_peak=hrf[0],
+#                                        undershoot_dur=hrf[1])
+#         for c in hrf_conditions:
+#             events_long[c] = cfeats[c]
+    
+#     if len(residual_conditions) > 0 and logger:
+#         logger.warning(dedent(f"""The following trial types were not selected under either of the specified models
+#                            and will not be included in the design matrix: {residual_conditions}"""))
+#         events_long = events_long.drop(columns=residual_conditions)
+
+#     if output_path and output_path.suff:
+#         logger.debug(f" saving events matrix to file: {output_path}")
+#         events_long.to_csv(output_path)
+    
+#     return (events_long, conditions)
+
+
 #TODO: maybe write a validator for the input task file?
 @debug_logging
-def events_to_design(func_data: npt.ArrayLike,
-                     tr: float,
-                     event_file: str | Path,
+def events_to_design(events_long: pd.DataFrame,
                      fir: int = None,
                      hrf: tuple[int] = None,
                      fir_list: list[str] = None,
                      hrf_list: list[str] = None,
-                     output_path: str = None):
+                     output_path: Path = None):
     """
-    Builds an initial design matrix from an event file. You can 
+    Builds an initial design matrix from an events long DataFrame. You can 
     convolve specified event types with an hemodynamic response function
     (HRF).
 
@@ -297,14 +419,8 @@ def events_to_design(func_data: npt.ArrayLike,
     
     Parameters
     ----------
-    func_data: npt.ArrayLike
-        A numpy array-like object representing functional data
-    tr: float
-        A float representing repetition time, the rate at 
-        which single brain images are captured following 
-        a radio frequency (RF) pulse
-    event_file: str | Path
-        .tsv file containing information about events, their onsets, and their durations (view the formatting of it above)
+    events_long: pd.DataFrame
+        A dataframe representing a long formatted events file
     fir: int = None
         An int denoting the order of an FIR filter
     hrf: tuple[int] = None
@@ -316,12 +432,10 @@ def events_to_design(func_data: npt.ArrayLike,
 
     Returns
     -------
-    (events_long, conditions): tuple
+    (events_matrix, conditions): tuple
         A tuple containing the DataFrame with filtered/convolved columns and a list of unique trial names.
     """
-    
-    if tr and tr <= 0:
-        raise ValueError(f"tr must be greater than 0. Current tr: {tr}")
+    events_matrix = events_long.copy()
     if fir and fir <= 0:
         raise ValueError(f"fir value must be greater than 0. Current fir: {fir}")
     if hrf and not (len(hrf) == 2 and hrf[0] > 0 and hrf[1] > 0):
@@ -333,10 +447,7 @@ def events_to_design(func_data: npt.ArrayLike,
     # fir_list and hrf_list must not have overlapping columns
     if (fir_list and hrf_list) and not set(fir_list).isdisjoint(hrf_list):
         raise RuntimeError("Both FIR and HRF lists of columns were specified, but they overlap.")
-    duration = tr * func_data.shape[0]
-    events_df = pd.read_csv(event_file, index_col=None, delimiter='\t')
-    conditions = [s for s in np.unique(events_df.trial_type)] # unique trial types
-    events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0, duration, tr))
+    conditions = [s for s in np.unique(events_matrix.columns)] # unique trial types
     residual_conditions = conditions
     if (fir and hrf) and (bool(fir_list) ^ bool(hrf_list)): # Create other list if only one is specified
         if fir_list:
@@ -345,14 +456,6 @@ def events_to_design(func_data: npt.ArrayLike,
             fir_list = [c for c in residual_conditions if c not in hrf_list]
         assert set(hrf_list).isdisjoint(fir_list)
         
-    for e in events_df.index:
-        i = find_nearest(events_long.index, events_df.loc[e,'onset'])
-        events_long.loc[i, events_df.loc[e,'trial_type']] = 1
-        if events_df.loc[e,'duration'] > tr:
-            offset = events_df.loc[e,'onset'] + events_df.loc[e,'duration']
-            j = find_nearest(events_long.index, offset)
-            events_long.loc[i:j, events_df.loc[e,'trial_type']] = 1
-
     if fir:
         fir_conditions = residual_conditions
         if fir_list and len(fir_list) > 0:
@@ -360,38 +463,38 @@ def events_to_design(func_data: npt.ArrayLike,
         residual_conditions = [c for c in residual_conditions if c not in fir_conditions]
         
         col_names = {c:c+"_00" for c in fir_conditions}
-        events_long = events_long.rename(columns=col_names)
+        events_matrix = events_matrix.rename(columns=col_names)
         fir_cols_to_add = dict()
         for c in fir_conditions:
             for i in range(1, fir):
-                fir_cols_to_add[f"{c}_{i:02d}"] = np.array(np.roll(events_long.loc[:,col_names[c]], shift=i, axis=0))
+                fir_cols_to_add[f"{c}_{i:02d}"] = np.array(np.roll(events_matrix.loc[:,col_names[c]], shift=i, axis=0))
                 # so events do not roll back around to the beginnin
                 fir_cols_to_add[f"{c}_{i:02d}"][:i] = 0
-        events_long = pd.concat([events_long, pd.DataFrame(fir_cols_to_add, index=events_long.index)], axis=1)
-        events_long = events_long.astype(int)
+        events_matrix = pd.concat([events_matrix, pd.DataFrame(fir_cols_to_add, index=events_matrix.index)], axis=1)
+        events_matrix = events_matrix.astype(int)
     if hrf:
         hrf_conditions = residual_conditions
         if hrf_list and len(hrf_list) > 0:
             hrf_conditions = [c for c in residual_conditions if c in hrf_list]
         residual_conditions = [c for c in residual_conditions if c not in hrf_conditions]
         
-        cfeats = hrf_convolve_features(features=events_long, 
+        cfeats = hrf_convolve_features(features=events_matrix, 
                                        column_names=hrf_conditions,
                                        time_to_peak=hrf[0],
                                        undershoot_dur=hrf[1])
         for c in hrf_conditions:
-            events_long[c] = cfeats[c]
+            events_matrix[c] = cfeats[c]
     
     if len(residual_conditions) > 0 and logger:
         logger.warning(dedent(f"""The following trial types were not selected under either of the specified models
                            and will not be included in the design matrix: {residual_conditions}"""))
-        events_long = events_long.drop(columns=residual_conditions)
+        events_matrix = events_matrix.drop(columns=residual_conditions)
 
     if output_path:
         logger.debug(f" saving events matrix to file: {output_path}")
-        events_long.to_csv(output_path)
+        events_matrix.to_csv(output_path)
     
-    return (events_long, conditions)
+    return (events_matrix, conditions)
 
 
 @debug_logging
@@ -553,6 +656,9 @@ def main():
                         help="The subject ID")
     session_arguments.add_argument("--session", "-se", required=True,
                         help="The session ID")
+    session_arguments.add_argument("--events_long", "-el", type=Path, nargs="?", const=lambda a: a.derivs_dir / a.preproc_subfolder,
+                        help="""Path to the directory containing long formatted event files to use. 
+                        Default is the derivatives directory containing preprocessed outputs.""")
     session_arguments.add_argument("--export_args", "-ea", type=Path,
                         help="Path to a file to save the current arguments.")
     session_arguments.add_argument("--debug", action="store_true",
@@ -565,7 +671,9 @@ def main():
     config_arguments.add_argument("--brain_mask", "-bm", type=Path,
                         help="If the bold file type is volumetric data, a brain mask must also be supplied.")
     config_arguments.add_argument("--derivs_dir", "-d", type=Path, required=True,
-                        help="Path to the BIDS formatted derivatives directory containing preprocessed outputs.")
+                        help="Path to the BIDS formatted derivatives directory containing processed outputs.")
+    config_arguments.add_argument("--preproc_subfolder", "-pd", type=Path, default="fmriprep",
+                        help="Name of the subfolder in the derivatives directory containing the preprocessed bold data")
     config_arguments.add_argument("--raw_bids", "-r", type=Path, required=True,
                         help="Path to the BIDS formatted raw data directory for this dataset.")
     config_arguments.add_argument("--derivs_subfolder", "-ds", default="first_level",
@@ -628,7 +736,10 @@ def main():
 
     if (args.volterra_lag and not args.volterra_columns) or (not args.volterra_lag and args.volterra_columns):
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
-   
+    
+    if callable(args.events_long):
+        args.events_long = args.events_long(args)
+
     try:
         assert args.derivs_dir.is_dir(), "Derivatives directory must exist but is not found"
         assert args.raw_bids.is_dir(), "Raw data directory must exist but is not found"
@@ -671,24 +782,33 @@ def main():
     file_map_list = []
 
     try: 
-        bold_files = sorted(args.derivs_dir.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold{args.bold_file_type}"))
+        preproc_derivs = args.derivs_dir / args.preproc_subfolder
+        bold_files = sorted(preproc_derivs.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold{args.bold_file_type}"))
         assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
 
         for bold_path in bold_files:
+            file_map = {"bold" : bold_path}
             bold_base = bold_path.name.split("_space")[0]
             bold_base = bold_base.split("_desc")[0]
-            # confound_name = bold_base + "_desc-confounds_timeseries.tsv"
+
             confound_path = bold_path.parent / f"{bold_base}_desc-confounds_timeseries.tsv"
-            assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)} seach path {confound_path.as_posix()}"
-            event_search_path = f"{bold_base}*_events.tsv"
-            event_files = list(args.raw_bids.glob("**/" + event_search_path))
-            assert len(event_files) == 1, f"Found more or less than one event file for bold run: {str(bold_path)} search path {event_search_path} len: {len(event_files)}"
-            events_path = event_files[0]
-            file_map_list.append({
-                "bold": bold_path,
-                "confounds": confound_path,
-                "events": events_path
-            })
+            assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)} search path: {confound_path.as_posix()}"
+            file_map["confounds"] = confound_path
+
+            if args.events_long:
+                events_long_search_path = f"{bold_base}*_desc*events_long.csv"
+                events_long_files = list(args.events_long.glob(f"**/{events_long_search_path}"))
+                assert len(events_long_files) == 1, f"Found more or less than one events long file for bold run: {str(bold_path)} search path: {events_long_search_path} len: {len(events_long_files)}"
+                events_long_path = events_long_files[0]
+                file_map["events"] = events_long_path
+            else:
+                event_search_path = f"{bold_base}*_events.tsv"
+                event_files = list(args.raw_bids.glob("**/" + event_search_path))
+                assert len(event_files) == 1, f"Found more or less than one event file for bold run: {str(bold_path)} search path: {event_search_path} len: {len(event_files)}"
+                events_path = event_files[0]
+                file_map["events"] = events_path
+
+            file_map_list.append(file_map)
 
         tr = args.repetition_time
         img_header = None
@@ -718,15 +838,23 @@ def main():
             img_header = img_header if img_header else read_header
 
             logger.info(" reading events file and creating design matrix")
+            events_long = None
+            if args.events_long:
+                events_long = pd.read_csv(run_map["events"], index_col=0)
+            else:
+                events_long = make_events_long( 
+                    event_file=run_map["events"], 
+                    volumes=func_data.shape[0],
+                    tr=tr, 
+                    output_file=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-events_long.csv" if flags.debug else None
+                )
             events_df, run_conditions = events_to_design(   
-                func_data=func_data,
-                tr=tr,
-                event_file=run_map["events"],
+                events_long=events_long,
                 fir=args.fir,
                 fir_list=args.fir_vars if args.fir_vars else None,
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
-                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}_events-long.csv" if flags.debug else None
+                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-{model_type}-events_matrix.csv" if flags.debug else None
             )
 
             logger.info(" reading confounds file and creating nuisance matrix")

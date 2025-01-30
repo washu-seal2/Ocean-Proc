@@ -3,10 +3,11 @@ import numpy as np
 import nibabel as nib
 import json
 import os
-from .utils import exit_program_early, debug_logging, log_linebreak
+from .utils import exit_program_early, debug_logging, log_linebreak, load_data
 from glob import glob
 from pathlib import Path
 import logging
+import numpy.typing as npt
 
 logger = logging.getLogger(__name__)
 
@@ -28,37 +29,39 @@ def find_nearest(array, value):
 
 
 @debug_logging
-def make_events_long(bold_run:Path, event_file:Path, output_file:Path, tr:float):
+def make_events_long(event_file:Path, volumes: int, tr:float, output_file:Path = None):
     """
     Takes and event file and a funtional run and creates a long formatted events file
     that maps the onset of task events to a frame of the functional run
 
-    :param bold_run: path to the function run corresponding to the event file
-    :type bold_run: pathlib.Path
+    :param func_data: A numpy array-like object representing functional data
+    :type bold_run: npt.ArrayLike
     :param event_file: path to the event timing file
     :type event_file: pathlib.Path
-    :param output_file: file path (including name) to save the long formatted event file to
-    :type output_file: pathlib.Path
     :param tr: Repetition time of the function run in seconds
     :type tr: float
+    :param output_file: file path (including name) to save the long formatted event file to
+    :type output_file: pathlib.Path
     """
-    nvols = nib.load(bold_run).dataobj.shape[-1]
-    duration = nvols * tr
 
+    duration = tr * volumes
     events_df = pd.read_csv(event_file, index_col=None, delimiter="\t")
     conditions = [s for s in np.unique(events_df.trial_type)]
     events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0,duration,tr))
 
     for e in events_df.index:
-        i = find_nearest(events_long.index, events_df.loc[e, "onset"])
-        events_long.loc[i, events_df.loc[e, "trial_type"]] = 1
-        if events_df.loc[e, "duration"] > tr:
-            offset = events_df.loc[e, "onset"] + events_df.loc[e, "duration"]
+        i = find_nearest(events_long.index, events_df.loc[e,'onset'])
+        events_long.loc[i, events_df.loc[e,'trial_type']] = 1
+        if events_df.loc[e,'duration'] > tr:
+            offset = events_df.loc[e,'onset'] + events_df.loc[e,'duration']
             j = find_nearest(events_long.index, offset)
-            if j>i:
-                events_long.loc[j, events_df.loc[e, "trial_type"]] = 1
+            events_long.loc[i:j, events_df.loc[e,'trial_type']] = 1
 
-    events_long.to_csv(output_file)
+    if output_file and output_file.suffix == ".csv":
+        logger.debug(f" saving events long to file: {output_file}")
+        events_long.to_csv(output_file)
+
+    return events_long
 
 
 @debug_logging
@@ -116,14 +119,14 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
     event_time_files = list(bids_func.glob("*_events.tsv"))
     logger.info(f"Found {len(event_time_files)} event timing files")
     for etf in event_time_files:
-        search_path = f"/sub-{sub}_ses-{ses}*"
+        search_path = f"sub-{sub}_ses-{ses}*"
         task = etf.name.split('task-')[-1].split('_')[0]
         search_path = f"{search_path}task-{task}*"
         run = None
         if "run" in etf.name:
             run = etf.name.split('run-')[-1].split('_')[0].zfill(2)
             search_path = f"{search_path}run-{run}*"
-        bold_file = list(bids_func.glob(f"{search_path}bold.nii*"))
+        bold_file = list(derivs_func.glob(f"{search_path}desc-preproc_bold.nii.gz"))
         if len(bold_file) < 1:
             logger.info(f"Could not find any bold files that matched this event timing file: {etf}")
             continue
@@ -133,17 +136,17 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
             continue
         confounds_file = confounds_file[0]
         bold_file = bold_file[0]
-        side_car = bold_file.split(".")[0] + ".json"
+        side_car = bold_file.with_suffix("").with_suffix(".json")
         tr = None
         with open(side_car, "r") as f:
             jd = json.load(f)
             tr = jd["RepetitionTime"]
-
+        nvols = nib.load(bold_file).dataobj.shape[-1]
         event_file_out = derivs_func / f"sub-{sub}_ses-{ses}_task-{task}_{f'run-{run}' if run else ''}_desc-events_long.csv"
-        make_events_long(bold_run=bold_file, 
-                         event_file=etf, 
-                         output_file=event_file_out, 
-                         tr=tr)
+        make_events_long(event_file=etf, 
+                         volumes=nvols,
+                         tr=tr,
+                         output_file=event_file_out)
         append_to_confounds(confounds_file=confounds_file, 
                             fd_thresh=fd_thresh)
         
