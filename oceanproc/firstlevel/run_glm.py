@@ -563,6 +563,8 @@ def main():
         args.bold_file_type = "." + args.bold_file_type
     if (args.bold_file_type == ".nii" or args.bold_file_type == ".nii.gz") and (not args.brain_mask or not args.brain_mask.is_file()):
         parser.error("If the bold file type is volumetric data, a valid '--brain_mask' option must also be supplied")
+    elif args.bold_file_type == ".dtseries.nii" and args.brain_mask:
+        args.brain_mask = None
 
     if (args.volterra_lag and not args.volterra_columns) or (not args.volterra_lag and args.volterra_columns):
         parser.error("The options '--volterra_lag' and '--volterra_columns' must be specifed together, or neither of them specified.")
