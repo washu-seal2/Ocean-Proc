@@ -3,6 +3,10 @@ import logging
 from pathlib import Path
 import json
 from types import SimpleNamespace
+import nibabel as nib
+import nilearn.masking as nmask
+import os
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +192,7 @@ def log_linebreak():
             h.setFormatter(logging.Formatter(default_log_format))
         traverse_logger = traverse_logger.parent
 
-
+@debug_logging
 def export_args_to_file(args, 
                         argument_group, 
                         file_path: Path):
@@ -222,3 +226,27 @@ def export_args_to_file(args,
         else:
             for k,v in opts_to_save.items():
                 f.write(f"{k}{make_option(value=v)}\n")
+
+
+@debug_logging
+def load_data(func_file: str|Path,
+              brain_mask: str = None,
+              need_tr: bool = False) -> np.ndarray:
+    tr = None
+    func_file = str(func_file)
+    if need_tr:
+        sidecar_file = func_file.split(".")[0] + ".json"
+        assert os.path.isfile(sidecar_file), f"Cannot find the .json sidecar file for bold run: {func_file}"
+        with open(sidecar_file, "r") as f:
+            jd = json.load(f)
+            tr = jd["RepetitionTime"]
+
+    if func_file.endswith(".dtseries.nii") or func_file.endswith(".dscalar.nii"):
+        img = nib.load(func_file)
+        return (img.get_fdata(), tr, img.header)
+    elif func_file.endswith(".nii") or func_file.endswith(".nii.gz"):
+        if brain_mask:
+            return (nmask.apply_mask(func_file, brain_mask), tr, None)
+        else:
+            raise Exception("Volumetric data must also have an accompanying brain mask")
+            # return None 
