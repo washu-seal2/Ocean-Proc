@@ -126,8 +126,8 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
         if "run" in etf.name:
             run = etf.name.split('run-')[-1].split('_')[0].zfill(2)
             search_path = f"{search_path}run-{run}*"
-        bold_file = list(derivs_func.glob(f"{search_path}desc-preproc_bold.nii.gz"))
-        if len(bold_file) < 1:
+        bold_files = list(derivs_func.glob(f"{search_path}_bold.*nii*"))
+        if len(bold_files) < 1:
             logger.info(f"Could not find any bold files that matched this event timing file: {etf}")
             continue
         confounds_file = list(derivs_func.glob(f"{search_path}confounds_timeseries.tsv"))
@@ -135,13 +135,29 @@ def create_events_and_confounds(bids_path:Path, derivs_path:Path, sub:str, ses:s
             logger.info(f"Could not find any confounds files that matched this event timing file: {etf}")
             continue
         confounds_file = confounds_file[0]
-        bold_file = bold_file[0]
+        bold_file = bold_files[0]
+
+        nvols = None
+        for bf in bold_files:
+            bold_file = bf
+            if bold_file.name.endswith("bold.dtseries.nii"):
+                nvols = nib.load(bold_file).shape[0]
+                break
+            elif bold_file.name.endswith("bold.nii.gz") or bold_file.name.endswith("bold.nii"):
+                nvols = nib.load(bold_file).shape[-1]
+                break
+        if not nvols:
+            logger.warning(f"Could not find any bold files of type '.dtseries.nii' or '.nii' or '.nii.gz' matching this event timing file: {etf}")
+            continue
+
         side_car = bold_file.with_suffix("").with_suffix(".json")
         tr = None
         with open(side_car, "r") as f:
             jd = json.load(f)
             tr = jd["RepetitionTime"]
-        nvols = nib.load(bold_file).dataobj.shape[-1]
+
+        logger.info(f"creating event file with file set: \n\t{etf}\n\t{bold_file}\n\t{confounds_file}")
+            
         event_file_out = derivs_func / f"sub-{sub}_ses-{ses}_task-{task}_{f'run-{run}' if run else ''}_desc-events_long.csv"
         make_events_long(event_file=etf, 
                          volumes=nvols,

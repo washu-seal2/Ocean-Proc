@@ -499,7 +499,7 @@ def main():
                         help="If the bold file type is volumetric data, a brain mask must also be supplied.")
     config_arguments.add_argument("--derivs_dir", "-d", type=Path, required=True,
                         help="Path to the BIDS formatted derivatives directory containing processed outputs.")
-    config_arguments.add_argument("--preproc_subfolder", "-pd", type=Path, default="fmriprep",
+    config_arguments.add_argument("--preproc_subfolder", "-pd", type=str, default="fmriprep",
                         help="Name of the subfolder in the derivatives directory containing the preprocessed bold data")
     config_arguments.add_argument("--raw_bids", "-r", type=Path, required=True,
                         help="Path to the BIDS formatted raw data directory for this dataset.")
@@ -624,7 +624,7 @@ def main():
             bold_base = bold_base.split("_desc")[0]
 
             confound_path = bold_path.parent / f"{bold_base}_desc-confounds_timeseries.tsv"
-            assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)} search path: {confound_path.as_posix()}"
+            assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)} search path: {confound_path}"
             file_map["confounds"] = confound_path
 
             if args.events_long:
