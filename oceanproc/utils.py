@@ -192,7 +192,7 @@ def log_linebreak():
             h.setFormatter(logging.Formatter(default_log_format))
         traverse_logger = traverse_logger.parent
 
-
+@debug_logging
 def export_args_to_file(args, 
                         argument_group, 
                         file_path: Path):
