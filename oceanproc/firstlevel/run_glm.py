@@ -521,6 +521,8 @@ def main():
     config_arguments.add_argument("--unmodeled", "-um", nargs="*",
                         help="""A list of the task regressors to leave unmodeled, but still included in the final design matrix. These are
                         typically continuous variables that need not be modeled with hrf or fir, but any of the task regressors can be included.""")
+    config_arguments.add_argument("--start_censoring", "-sc", type=int, default=0,
+                        help="The number of frames to censor out at the beginning of each run. Typically used to censor scanner equilibrium time. Default is 0")
     config_arguments.add_argument("--confounds", "-c", nargs="+", default=[], 
                         help="A list of confounds to include from each confound timeseries tsv file.")
     config_arguments.add_argument("--fd_threshold", "-fd", type=float, default=0.9,
@@ -746,14 +748,14 @@ def main():
                             beta_filename
                         )
 
-            sample_mask = np.ones(shape=(func_data.shape[0],))
+            sample_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
+            sample_mask[:args.start_censoring] = False
             if args.fd_censoring:
                 logger.info(f" censoring timepoints using a high motion mask with a framewise displacement threshold of {args.fd_threshold}")
                 confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
-                sample_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()
-                sample_mask = sample_mask < args.fd_threshold
-                events_df = events_df.loc[sample_mask, :]
-                noise_df = noise_df.loc[sample_mask, :]
+                fd_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy() < args.fd_threshold
+                sample_mask &= fd_mask
+                logger.info(f" a total of {np.sum(~fd_mask)} timepoints will be censored with this framewise displacement threshold")
 
             if args.lowpass or args.highpass:    
                 logger.info(f" detrending and filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
@@ -803,8 +805,11 @@ def main():
                         cleanimg,
                         cleaned_filename
                     )
-            elif args.fd_censoring:
+            else:
                 func_data = func_data[sample_mask, :]
+            
+            events_df = events_df.loc[sample_mask, :]
+            noise_df = noise_df.loc[sample_mask, :]
                 
 
             assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
