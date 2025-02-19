@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
-import os
 import sys
-from glob import glob
 from pathlib import Path
 import numpy.typing as npt
 import pandas as pd
@@ -12,8 +10,7 @@ import nibabel as nib
 # from nilearn.plotting import plot_design_matrix
 # import matplotlib.pyplot as plt
 import nilearn.masking as nmask
-from nilearn.signal import clean, butterworth, _handle_scrubbed_volumes
-import json
+from nilearn.signal import butterworth, _handle_scrubbed_volumes
 from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
