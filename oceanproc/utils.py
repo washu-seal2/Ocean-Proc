@@ -217,7 +217,7 @@ def export_args_to_file(args,
                 opts_to_save[a.option_strings[0]] = ""
                 continue
             elif isinstance(all_opts[a.dest], Path):
-                opts_to_save[a.option_strings[0]] = str(all_opts[a.dest])
+                opts_to_save[a.option_strings[0]] = str(all_opts[a.dest].resolve())
                 continue
             opts_to_save[a.option_strings[0]] = all_opts[a.dest]
     with open(file_path, "w") as f:

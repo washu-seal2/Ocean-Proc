@@ -12,7 +12,7 @@ import nibabel as nib
 # from nilearn.plotting import plot_design_matrix
 # import matplotlib.pyplot as plt
 import nilearn.masking as nmask
-from nilearn.signal import clean
+from nilearn.signal import clean, butterworth, _handle_scrubbed_volumes
 import json
 from scipy import signal
 from scipy.stats import gamma
@@ -355,43 +355,57 @@ def events_to_design(events_long: pd.DataFrame,
 
 
 @debug_logging
-def bandpass_filter(func_data: npt.ArrayLike,
-                    tr: float,
-                    high_cut: float = 0.1,
-                    low_cut: float = 0.008,
-                    order: int = 2 ):
+def filter_data(func_data: npt.ArrayLike,
+                mask: npt.ArrayLike,
+                tr: float,
+                low_pass: float = 0.1,
+                high_pass: float = 0.008):
+    
     """
-    Apply a bandpass filter to the functional data, between two frequencies.
+    Apply a lowpass, highpass, or bandpass filter to the functional data. Masked frames
+    are interploated using a cubic splice function before filtering. The returned array 
+    is the functional data after interpolation and filtering.
 
     Parameters
     ----------
     func_data: npt.ArrayLike
         A numpy array representing BOLD data
+    mask: npt.ArrayLike
+        A numpy array representing a mask along the first axis (time axis) of the BOLD data
     tr: float
         Repetition time at the scanner
     high_cut: float
         Frequency above which the bandpass filter will be applied
     low_cut: float
         Frequency below which the bandpass filter will be applied
-    order: int
-        Order of the filter
 
     Returns
     -------
 
     filtered_data: npt.ArrayLike
-        A numpy array representing BOLD data with the bandpass filter applied
+        A numpy array representing BOLD data with the filter applied
     """
-    fs = 1/tr
-    nyquist = 1/(2*tr)
-    high = high_cut/nyquist
-    low = low_cut/nyquist
-    # sos = signal.butter(order, [low, high], btype="band", fs=fs, output="sos")
-    b, a = signal.butter(order, [low, high], btype="band", fs=fs)
+    assert mask.shape[0] == func_data.shape[0], "the mask must be the same length as the functional data"
+    assert mask.dtype == bool
 
-    # filtered_data = signal.sosfiltfilt(sos=sos, x=func_data, axis=0)
-    filtered_data = signal.filtfilt(b=b, a=a, x=func_data, axis=0)
-    
+    # if the mask is excluding frames, interpolate the censored frames
+    if np.sum(mask) < mask.shape[0]:
+        func_data, _, mask = _handle_scrubbed_volumes(
+            signals=func_data,
+            confounds=None,
+            sample_mask=mask,
+            filter_type="butterworth",
+            t_r=tr,
+            extrapolate=True
+        )
+
+    filtered_data = butterworth(
+        signals=func_data,
+        sampling_rate=1.0 / tr,
+        low_pass=low_pass,
+        high_pass=high_pass
+    )
+
     return filtered_data
 
 
@@ -446,7 +460,8 @@ def create_final_design(data_list: list[npt.ArrayLike],
 
 @debug_logging
 def massuni_linGLM(func_data: npt.ArrayLike,
-                   design_matrix: pd.DataFrame):
+                   design_matrix: pd.DataFrame,
+                   mask: npt.ArrayLike):
     """
     Compute the mass univariate GLM.
 
@@ -457,15 +472,36 @@ def massuni_linGLM(func_data: npt.ArrayLike,
         Numpy array representing BOLD data
     design_matrix: pd.DataFrame
         DataFrame representing a design matrix for the GLM
+    mask: npt.ArrayLike
+        Numpy array representing a mask to apply to the two other parameters
     """
-    ss = StandardScaler()
-    design_matrix = ss.fit_transform(design_matrix.to_numpy())
-    neuro_data = ss.fit_transform(func_data)
+    assert mask.shape[0] == func_data.shape[0], "the mask must be the same length as the functional data"
+    assert mask.dtype == bool
 
-    inv_mat = np.linalg.pinv(design_matrix)
-    beta_data = np.dot(inv_mat, neuro_data)
+    # apply the mask to the data
+    design_matrix = design_matrix.to_numpy()
+    masked_func_data = func_data[mask, :]
+    masked_design_matrix = design_matrix[mask, :]
+
+    ss = StandardScaler()
+
+    # standardize the masked data
+    masked_func_data = ss.fit_transform(masked_func_data)
+    masked_design_matrix = ss.fit_transform(masked_design_matrix)
+
+    # comput beta values
+    inv_mat = np.linalg.pinv(masked_design_matrix)
+    beta_data = np.dot(inv_mat, masked_func_data)
+
+    # standardize the unmasked data
+    func_data = ss.fit_transform(func_data)
+    design_matrix = ss.fit_transform(design_matrix)
+
+    # compute the residuals with unmasked data
     est_values = np.dot(design_matrix, beta_data)
-    return (beta_data, func_data - est_values)
+    resids = func_data - est_values
+
+    return (beta_data, resids)
 
 
 
@@ -541,6 +577,8 @@ def main():
                         help="Flag to indicate that frames above the framewise displacement threshold should be censored before the glm.")
     config_arguments.add_argument("--nuisance_regression", "-nr", action="store_true",
                         help="Flag to indicate that nuisance regression should be performed before performing the GLM for event-related activation.")
+    config_arguments.add_argument("--nuisance_fd", "-nf", type=float,
+                        help="The framewise displacement threshold used when censoring frames for nuisance regression.")
     config_arguments.add_argument("--highpass", "-hp", type=float, nargs="?", const=0.008,
                         help="""The high pass cutoff frequency for signal filtering. Frequencies below this value (Hz) will be filtered out. If the argument
                         is supplied but no value is given, then the value will default to 0.008 Hz""")
@@ -581,7 +619,7 @@ def main():
         logger.exception(e)
         exit_program_early(e)
 
-    ##### Export the current arguments to a file #####
+    ################# Export the current arguments to a file #################
     if args.export_args:
         try:
             assert args.export_args.parent.exists() and args.export_args.suffix, "Argument export path must be a file path in a directory that exists"
@@ -608,7 +646,7 @@ def main():
     logger.info("Starting oceanfla...")
     logger.info(f"Log will be stored at {log_path}")
 
-    # log the arguments used for this run
+    ################# log the arguments used for this run #################
     for k,v in (dict(args._get_kwargs())).items():
         logger.info(f" {k} : {v}")
         
@@ -616,33 +654,32 @@ def main():
     file_map_list = []
 
     try: 
-        # find all preprocessed BOLD runs for this subject and session
+        ################# find all preprocessed BOLD runs for this subject and session #################
         preproc_derivs = args.derivs_dir / args.preproc_subfolder
         bold_files = sorted(preproc_derivs.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold{args.bold_file_type}"))
         assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
         
-        # for each BOLD run, find the accompanying confounds file and events/events long file
+        ################# for each BOLD run, find the accompanying confounds file and events/events long file #################
         for bold_path in bold_files:
             file_map = {"bold" : bold_path}
             bold_base = bold_path.name.split("_space")[0]
             bold_base = bold_base.split("_desc")[0]
 
-            confound_path = bold_path.parent / f"{bold_base}_desc-confounds_timeseries.tsv"
-            assert confound_path.is_file(), f"Cannot find a confounds file for bold run: {str(bold_path)} search path: {confound_path}"
-            file_map["confounds"] = confound_path
+            confounds_search_path = f"{bold_base}_desc*-confounds_timeseries.tsv"
+            confounds_files = list(bold_path.parent.glob(confounds_search_path))
+            assert len(confounds_files) == 1, f"Found more or less than one confounds file for bold run: {str(bold_path)} search path: {confounds_search_path} len: {len(confounds_files)}"
+            file_map["confounds"] = confounds_files[0]
 
             if args.events_long:
                 events_long_search_path = f"{bold_base}*_desc*events_long.csv"
                 events_long_files = list(args.events_long.glob(f"**/{events_long_search_path}"))
                 assert len(events_long_files) == 1, f"Found more or less than one events long file for bold run: {str(bold_path)} search path: {events_long_search_path} len: {len(events_long_files)}"
-                events_long_path = events_long_files[0]
-                file_map["events"] = events_long_path
+                file_map["events"] = events_long_files[0]
             else:
                 event_search_path = f"{bold_base}*_events.tsv"
                 event_files = list(args.raw_bids.glob("**/" + event_search_path))
                 assert len(event_files) == 1, f"Found more or less than one event file for bold run: {str(bold_path)} search path: {event_search_path} len: {len(event_files)}"
-                events_path = event_files[0]
-                file_map["events"] = events_path
+                file_map["events"] = event_files[0]
 
             file_map_list.append(file_map)
 
@@ -652,6 +689,7 @@ def main():
         func_data_list = []
         design_df_list = []
         noise_df_list = []
+        mask_list = []
 
         # For each set of run files, create the design matrix and finalize the BOLD data before the session-task level GLM
         for i, run_map in enumerate(file_map_list):
@@ -674,6 +712,8 @@ def main():
             tr = tr if tr else read_tr
             img_header = img_header if img_header else read_header
 
+
+            ################ create the events matrix #################
             logger.info(" reading events file and creating design matrix")
             events_long = None
             if args.events_long:
@@ -691,10 +731,11 @@ def main():
                 fir_list=args.fir_vars if args.fir_vars else None,
                 hrf=args.hrf,
                 hrf_list=args.hrf_vars if args.hrf_vars else None,
-                unmodeled_list=args.unmodeled,
-                output_path=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}-events_matrix.csv" if flags.debug else None
+                unmodeled_list=args.unmodeled
             )
 
+
+            ################# create the noise matrix #################
             logger.info(" reading confounds file and creating nuisance matrix")
             noise_df = make_noise_ts(
                 confounds_file=run_map["confounds"],
@@ -705,16 +746,66 @@ def main():
                 volterra_expansion=args.volterra_lag,
                 volterra_columns=args.volterra_columns
             )
+
+
+            ################# create and apply the acqusition mask #################
+            acquisition_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
+            acquisition_mask[:args.start_censoring] = False
+            func_data = func_data[acquisition_mask, :]
+            events_df = events_df.loc[acquisition_mask, :]
+            noise_df = noise_df.loc[acquisition_mask, :]
+
+
+            ################# save out the nuisance matrix and events matrix (if debug)#################
             noise_df_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_nuisance.csv"
             logger.info(f" saving nuisance matrix to file: {noise_df_filename}")
             noise_df.to_csv(noise_df_filename)
+            if flags.debug:
+                events_df_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}-events_matrix.csv"
+                logger.debug(f" saving events matrix to file: {events_df_filename}")
+                events_df.to_csv(events_df_filename)
 
+
+            ################# detrend the BOLD data if specifed #################
+            if args.detrend_data:
+                logger.info(" detrending the BOLD data")
+                func_data_detrend = demean_detrend(
+                    func_data=func_data
+                )
+                run_map["data_detrend"] = func_data_detrend
+                func_data = func_data_detrend
+                if flags.debug: 
+                    cleanimg, img_suffix = create_image(
+                        data=func_data,
+                        brain_mask=args.brain_mask,
+                        tr=tr,
+                        header=img_header
+                    )
+                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_detrended{img_suffix}"
+                    logger.debug(f" saving BOLD data after detrending to file: {cleaned_filename}")
+                    nib.save(
+                        cleanimg,
+                        cleaned_filename
+                    )
+            
+
+            ################# nuisance regression if specified #################
             if args.nuisance_regression:
+                nuisance_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
+                if args.nuisance_fd:
+                    logger.info(f" censoring timepoints for nuisance regression using the framewise displacement threshold of {args.nuisance_fd}")
+                    confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
+                    nuisance_fd_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()[acquisition_mask] < args.nuisance_fd
+                    nuisance_mask &= nuisance_fd_mask
+                    logger.info(f" a total of {np.sum(~nuisance_mask)} timepoints will be censored with this nuisance framewise displacement threshold")
+
                 logger.info(" performing nuisance regression")
                 nuisance_betas, func_data_residuals = massuni_linGLM(
                     func_data=func_data,
                     design_matrix=noise_df,
+                    mask=nuisance_mask
                 )
+
                 run_map["data_resids"] = func_data_residuals
                 func_data = func_data_residuals
 
@@ -748,25 +839,27 @@ def main():
                             beta_filename
                         )
 
-            sample_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
-            sample_mask[:args.start_censoring] = False
+
+            ################# create high motion mask #################
+            run_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
             if args.fd_censoring:
                 logger.info(f" censoring timepoints using a high motion mask with a framewise displacement threshold of {args.fd_threshold}")
                 confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
-                fd_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy() < args.fd_threshold
-                sample_mask &= fd_mask
+                fd_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()[acquisition_mask] < args.fd_threshold
+                run_mask &= fd_mask
                 logger.info(f" a total of {np.sum(~fd_mask)} timepoints will be censored with this framewise displacement threshold")
 
+
+            ################# filter the data if specified #################
             if args.lowpass or args.highpass:    
-                logger.info(f" detrending and filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
-                func_data_filtered = clean(
-                    signals=func_data,
-                    detrend=args.detrend_data,
-                    sample_mask=sample_mask,
-                    filter="butterworth",
+                logger.info(f" filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
+                func_data_filtered = filter_data(
+                    func_data=func_data,
+                    mask=run_mask,
+                    tr=tr,
                     low_pass=args.lowpass if args.lowpass else None,
                     high_pass=args.highpass if args.highpass else None,
-                    t_r=tr,
+
                 )
                 run_map["data_filtered"] = func_data_filtered
                 func_data = func_data_filtered
@@ -777,54 +870,34 @@ def main():
                         tr=tr,
                         header=img_header
                     )
-                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_cleaned{img_suffix}"
-                    logger.debug(f" saving BOLD data after cleaning to file: {cleaned_filename}")
+                    filtered_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_filtered{img_suffix}"
+                    logger.debug(f" saving BOLD data after filtering to file: {filtered_filename}")
                     nib.save(
                         cleanimg,
-                        cleaned_filename
+                        filtered_filename
                     )
-            elif args.detrend_data:
-                logger.info(" detrending the BOLD data")
-                func_data_detrend = demean_detrend(
-                    func_data=func_data
-                )
-                run_map["data_detrend"] = func_data_detrend
-                func_data = func_data_detrend
-                if args.fd_censoring:
-                    func_data = func_data[sample_mask, :]
-                if flags.debug: 
-                    cleanimg, img_suffix = create_image(
-                        data=func_data,
-                        brain_mask=args.brain_mask,
-                        tr=tr,
-                        header=img_header
-                    )
-                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_cleaned{img_suffix}"
-                    logger.debug(f" saving BOLD data after detrending to file: {cleaned_filename}")
-                    nib.save(
-                        cleanimg,
-                        cleaned_filename
-                    )
-            else:
-                func_data = func_data[sample_mask, :]
             
-            events_df = events_df.loc[sample_mask, :]
-            noise_df = noise_df.loc[sample_mask, :]
-                
 
+            ################# apppend the run-wise data to the session list #################
             assert func_data.shape[0] == len(noise_df), "The functional data and the nuisance matrix have a different number of timepoints"
             if not args.nuisance_regression:
-                logger.info(" appending nuisance matrix to the design matrix")
+                logger.info(" appending the nuisance matrix to the run list")
                 noise_df_list.append(noise_df)
 
-            logger.info(" appending BOLD data and design matrix to run list")
-            trial_types.update(run_conditions)
+            logger.info(" appending the high motion mask to the run list")
+            assert func_data.shape[0] == run_mask.shape[0] , "The functional data and the high motion mask have a different number of timepoints"
+            mask_list.append(run_mask)
 
+            logger.info(" appending the BOLD data and design matrix to the run list")
+            trial_types.update(run_conditions)
             assert func_data.shape[0] == len(events_df), "The functional data and the design matrix have a different number of timepoints"
             func_data_list.append(func_data)
             design_df_list.append(events_df)
+
         
         log_linebreak()
+
+        ################# create the final design matrix and append the data together #################
         logger.info("concatenating run level BOLD data and design matrices for GLM")
         final_func_data, final_design_df = create_final_design(
             data_list=func_data_list,
@@ -836,12 +909,16 @@ def main():
         logger.info(f"saving the final design matrix to file: {final_design_filename}")
         final_design_df.to_csv(final_design_filename)
 
+        ################# run the final GLM #################
         logger.info("running GLM on concatenated BOLD data with final design matrix")
+        final_high_motion_mask = np.concat(mask_list, axis=0)
         activation_betas, func_residual = massuni_linGLM(
             func_data=final_func_data,
-            design_matrix=final_design_df
+            design_matrix=final_design_df,
+            mask=final_high_motion_mask
         )
 
+        ################# save out the beta values #################
         logger.info("saving betas from GLM into files")
         fir_betas_to_combine = set()
         for i, c in enumerate(final_design_df.columns):
@@ -893,7 +970,8 @@ def main():
                     beta_img,
                     beta_filename
                 )
-        
+
+        ################# save out the nuisance betas and the residuals #################
         if flags.debug:
             # save out the nuisance betas
             nuisance_cols = [(i,c) for i,c in enumerate(final_design_df.columns) if len([condition for condition in trial_types if condition in c])==0]
@@ -924,7 +1002,7 @@ def main():
                 resid_img,
                 resid_filename
             )
-
+        
         logger.info("oceanfla complete!")
 
     except Exception as e:
