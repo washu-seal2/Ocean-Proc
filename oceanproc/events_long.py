@@ -44,10 +44,10 @@ def make_events_long(event_file:Path, volumes: int, tr:float, output_file:Path =
     :type output_file: pathlib.Path
     """
 
-    duration = round(tr * volumes, 1)
+    duration = tr * volumes
     events_df = pd.read_csv(event_file, index_col=None, delimiter="\t")
     conditions = [s for s in np.unique(events_df.trial_type)]
-    events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0,duration,tr))
+    events_long = pd.DataFrame(0, columns=conditions, index=np.arange(0,duration,tr)[:volumes])
 
     for e in events_df.index:
         i = find_nearest(events_long.index, events_df.loc[e,'onset'])
