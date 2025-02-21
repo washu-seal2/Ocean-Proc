@@ -408,7 +408,7 @@ def filter_data(func_data: npt.ArrayLike,
 
 @debug_logging
 def create_final_design(data_list: list[npt.ArrayLike],
-                        design_list: list[pd.DataFrame],
+                        design_list: list[tuple[pd.DataFrame, int]],
                         noise_list: list[pd.DataFrame] = None,
                         exclude_global_mean: bool = False):
     """
@@ -435,20 +435,22 @@ def create_final_design(data_list: list[npt.ArrayLike],
     num_runs = len(data_list)
     assert num_runs == len(design_list), "There should be the same number of design matrices and functional runs"
     
+    design_df_list = [t[0] for t in design_list]
     if noise_list:
         assert num_runs == len(noise_list), "There should be the same number of noise matrices and functional runs"
         for i in range(num_runs):
             noise_df = noise_list[i]
-            assert len(noise_df) == len(design_list[i])
+            assert len(noise_df) == len(design_df_list[i])
+            run_num = design_list[i][1]
             rename_dict = dict()
             for c in noise_df.columns:
                 if ("trend" in c) or ("mean" in c) or ("spike" in c):
-                    rename_dict[c] = f"run-{i+1}_{c}"
+                    rename_dict[c] = f"run-{run_num:02d}_{c}"
             noise_df = noise_df.rename(columns=rename_dict)
             noise_list[i] = noise_df
-            design_list[i] = pd.concat([design_list[i].reset_index(drop=True), noise_df.reset_index(drop=True)], axis=1)
+            design_df_list[i] = pd.concat([design_df_list[i].reset_index(drop=True), noise_df.reset_index(drop=True)], axis=1)
 
-    final_design = pd.concat(design_list, axis=0, ignore_index=True).fillna(0)
+    final_design = pd.concat(design_df_list, axis=0, ignore_index=True).fillna(0)
     if not exclude_global_mean:
         final_design.loc[:, "global_mean"] = 1
     final_data = np.concat(data_list, axis=0)
@@ -571,7 +573,9 @@ def main():
     high_motion_params.add_argument("--spike_regression", "-sr", action="store_true",
                         help="Flag to indicate that framewise displacement spike regression should be included in the nuisance matrix.")
     high_motion_params.add_argument("--fd_censoring", "-fc", action="store_true",
-                        help="Flag to indicate that frames above the framewise displacement threshold should be censored before the glm.")
+                        help="Flag to indicate that frames above the framewise displacement threshold should be censored before the GLM.")
+    config_arguments.add_argument("--run_exclusion_threshold", "-re", type=int, 
+                        help="The percent of frames a run must retain after high motion censoring to be included in the fine GLM. Only has effect when '--fd_censoring' is active.")
     config_arguments.add_argument("--nuisance_regression", "-nr", action="store_true",
                         help="Flag to indicate that nuisance regression should be performed before performing the GLM for event-related activation.")
     config_arguments.add_argument("--nuisance_fd", "-nf", type=float,
@@ -695,10 +699,10 @@ def main():
             logger.info(f" loading in BOLD data")
 
             run_info = len(str(run_map['bold']).split('run-')) > 1
+            run_num = i+1
             if run_info:
-                run_info = f"run-{str(run_map['bold']).split('run-')[-1].split('_')[0]}_"
-            else:
-                run_info = f'run-{(i+1):02d}_'
+                run_num = int(run_map['bold'].name.split('run-')[-1].split('_')[0])
+            run_info = f'run-{run_num:02d}_'
 
             func_data, read_tr, read_header = load_data(
                 func_file=run_map['bold'], 
@@ -720,7 +724,6 @@ def main():
                     event_file=run_map["events"], 
                     volumes=func_data.shape[0],
                     tr=tr, 
-                    output_file=args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-events_long.csv" if flags.debug else None
                 )
             events_df, run_conditions = events_to_design(   
                 events_long=events_long,
@@ -748,9 +751,27 @@ def main():
             ################# create and apply the acqusition mask #################
             acquisition_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
             acquisition_mask[:args.start_censoring] = False
+            if args.start_censoring > 0:
+                logger.info(f" removing the first {args.start_censoring} frames from the beginning of the run")
             func_data = func_data[acquisition_mask, :]
             events_df = events_df.loc[acquisition_mask, :]
             noise_df = noise_df.loc[acquisition_mask, :]
+
+
+            ################# create high motion mask and exclude run if needed #################
+            run_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
+            if args.fd_censoring:
+                logger.info(f" censoring timepoints using a high motion mask with a framewise displacement threshold of {args.fd_threshold}")
+                confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
+                fd_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()[acquisition_mask] < args.fd_threshold
+                run_mask &= fd_mask
+                logger.info(f" a total of {np.sum(~run_mask)} timepoints will be censored with this framewise displacement threshold")
+                frame_retention_percent = (np.sum(run_mask) / run_mask.shape[0]) * 100
+                logger.info(f" total run length after start censoring: {run_mask.shape[0]}, number of frames retained after high motion censoring: {np.sum(run_mask)}")
+                # if censoring causes the number of retained frames to be below the run exclusion threshold, drop the run
+                if args.run_exclusion_threshold and (frame_retention_percent < args.run_exclusion_threshold):
+                    logger.info(f" BOLD run: {run_map['bold']} has fell below the run exclusion threshold of {args.run_exclusion_threshold}% and will not be used in the final GLM.")
+                    continue
 
 
             ################# save out the nuisance matrix and events matrix (if debug)#################
@@ -758,6 +779,10 @@ def main():
             logger.info(f" saving nuisance matrix to file: {noise_df_filename}")
             noise_df.to_csv(noise_df_filename)
             if flags.debug:
+                events_long_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-events_long.csv"
+                logger.debug(f" saving events long to file: {events_long_filename}")
+                events_long.to_csv(events_long_filename)
+
                 events_df_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}-events_matrix.csv"
                 logger.debug(f" saving events matrix to file: {events_df_filename}")
                 events_df.to_csv(events_df_filename)
@@ -837,16 +862,6 @@ def main():
                         )
 
 
-            ################# create high motion mask #################
-            run_mask = np.ones(shape=(func_data.shape[0],)).astype(bool)
-            if args.fd_censoring:
-                logger.info(f" censoring timepoints using a high motion mask with a framewise displacement threshold of {args.fd_threshold}")
-                confounds_df = pd.read_csv(run_map["confounds"], sep="\t")
-                fd_mask = confounds_df.loc[:, "framewise_displacement"].to_numpy()[acquisition_mask] < args.fd_threshold
-                run_mask &= fd_mask
-                logger.info(f" a total of {np.sum(~fd_mask)} timepoints will be censored with this framewise displacement threshold")
-
-
             ################# filter the data if specified #################
             if args.lowpass or args.highpass:    
                 logger.info(f" filtering the BOLD data with a highpass of {args.highpass} and a lowpass of {args.lowpass}")
@@ -889,36 +904,51 @@ def main():
             trial_types.update(run_conditions)
             assert func_data.shape[0] == len(events_df), "The functional data and the design matrix have a different number of timepoints"
             func_data_list.append(func_data)
-            design_df_list.append(events_df)
+            design_df_list.append((events_df,run_num))
+            logger.info(f" a total of {np.sum(run_mask)} frames will be used from BOLD file: {run_map['bold']}")
 
         
         log_linebreak()
+        ################# check that at least one run passed the run exculsion threshold #################
+        assert len(func_data_list) == len(design_df_list) and (len(noise_df_list) == 0 or (len(noise_df_list) == len(func_data_list))), "Something went wrong! Run-wise data lists are not the same size."
+        if len(func_data_list) == 0:
+            logger.info(f"all run have been excluded with the run exclusion threshold of {args.run_exclusion_threshold}%, try lowering this parameter before running again!")
+            return
 
         ################# create the final design matrix and append the data together #################
         logger.info("concatenating run level BOLD data and design matrices for GLM")
-        final_func_data, final_design_df = create_final_design(
+        final_func_data, final_design_unmasked = create_final_design(
             data_list=func_data_list,
             design_list=design_df_list,
             noise_list=noise_df_list if len(noise_df_list) == len(func_data_list) else None,
             exclude_global_mean=args.no_global_mean
         )
-        final_design_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-design_final.csv"
-        logger.info(f"saving the final design matrix to file: {final_design_filename}")
-        final_design_df.to_csv(final_design_filename)
+        final_high_motion_mask = np.concat(mask_list, axis=0)
+        logger.info(f"total number of framess after start censoring for each run: {final_high_motion_mask.shape[0]}")
+        logger.info(f"total number of frames that will be used in the final GLM after high motion censoring: {np.sum(final_high_motion_mask)}")
+
+        final_design_masked = final_design_unmasked.loc[final_high_motion_mask, :]
+        final_design_unmasked_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-design_unmasked.csv"
+        logger.info(f"saving the final unmasked design matrix to file: {final_design_unmasked_filename}")
+        final_design_unmasked.to_csv(final_design_unmasked_filename)
+        final_design_masked_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-design_final.csv"
+        logger.info(f"saving the final design matrix to file: {final_design_masked_filename}")
+        final_design_masked.to_csv(final_design_masked_filename)
+
 
         ################# run the final GLM #################
         logger.info("running GLM on concatenated BOLD data with final design matrix")
-        final_high_motion_mask = np.concat(mask_list, axis=0)
+        
         activation_betas, func_residual = massuni_linGLM(
             func_data=final_func_data,
-            design_matrix=final_design_df,
+            design_matrix=final_design_unmasked,
             mask=final_high_motion_mask
         )
 
         ################# save out the beta values #################
         logger.info("saving betas from GLM into files")
         fir_betas_to_combine = set()
-        for i, c in enumerate(final_design_df.columns):
+        for i, c in enumerate(final_design_unmasked.columns):
             if args.fir and c[-3] == "_" and c[-2:].isnumeric() and c[:-3] in trial_types:
                 fir_betas_to_combine.add(c[:-3])
                 continue
@@ -940,7 +970,7 @@ def main():
             for condition in fir_betas_to_combine:
                 beta_frames = np.zeros(shape=(args.fir, activation_betas.shape[1]))
                 for f in range(args.fir):
-                    beta_column = final_design_df.columns.get_loc(f"{condition}_{f:02d}")
+                    beta_column = final_design_unmasked.columns.get_loc(f"{condition}_{f:02d}")
                     beta_frames[f,:] = activation_betas[beta_column,:]
                     beta_img, img_suffix = create_image(
                         data=np.expand_dims(activation_betas[beta_column,:], axis=0),
@@ -971,7 +1001,7 @@ def main():
         ################# save out the nuisance betas and the residuals #################
         if flags.debug:
             # save out the nuisance betas
-            nuisance_cols = [(i,c) for i,c in enumerate(final_design_df.columns) if len([condition for condition in trial_types if condition in c])==0]
+            nuisance_cols = [(i,c) for i,c in enumerate(final_design_unmasked.columns) if len([condition for condition in trial_types if condition in c])==0]
             for i, noise_col in nuisance_cols:
                 beta_img, img_suffix = create_image(
                     data=np.expand_dims(activation_betas[i,:], axis=0),
@@ -999,14 +1029,13 @@ def main():
                 resid_img,
                 resid_filename
             )
-        
-        logger.info("oceanfla complete!")
 
     except Exception as e:
         logger.exception(e, stack_info=True)
         exit_program_early(str(e))
+    
+    logger.info("oceanfla complete!")
 
 if __name__ == "__main__":
     main()
-    
 
