@@ -40,6 +40,7 @@ logger = logging.getLogger()
 @debug_logging
 def load_data(func_file: str|Path,
               brain_mask: str = None,
+              auto_mask: bool = False,
               need_tr: bool = False) -> np.ndarray:
     tr = None
     func_file = str(func_file)
@@ -56,6 +57,14 @@ def load_data(func_file: str|Path,
     elif func_file.endswith(".nii") or func_file.endswith(".nii.gz"):
         if brain_mask:
             return (nmask.apply_mask(func_file, brain_mask), tr, None)
+        elif auto_mask:
+            mask_path = func_file.replace("desc-preproc_bold", "desc-brain_mask")
+            if not os.path.isfile(mask_path):
+                raise FileNotFoundError(dedent(f"""
+                                               --auto_mask flag was set, but cannot find an accompanying brain mask for the given BOLD run.
+                                               BOLD path: {func_file}
+                                               """))
+            return (nmask.apply_mask(func_file, mask_path), tr, None)
         else:
             raise Exception("Volumetric data must also have an accompanying brain mask")
             # return None 
@@ -562,8 +571,14 @@ def main():
                         help="The name of the task to analyze.")
     config_arguments.add_argument("--bold_file_type", "-ft", required=True,
                         help="The file type of the functional runs to use.")
-    config_arguments.add_argument("--brain_mask", "-bm", type=Path,
+
+    mask_arguments = config_arguments.add_mutually_exclusive_group()
+    mask_arguments.add_argument("--brain_mask", "-bm", type=Path,
                         help="If the bold file type is volumetric data, a brain mask must also be supplied.")
+    mask_arguments.add_argument("--auto_mask", "-am", type=Path,
+                        help="If the bold file type is volumetric data, try to automatically assign fMRIprep/Nibabies-generated brain masks to each run.",
+                        action='store_true')
+
     config_arguments.add_argument("--derivs_dir", "-d", type=Path, required=True,
                         help="Path to the BIDS formatted derivatives directory containing preprocessed outputs.")
     config_arguments.add_argument("--raw_bids", "-r", type=Path, required=True,
@@ -623,7 +638,7 @@ def main():
     
     if args.bold_file_type[0] != ".":
         args.bold_file_type = "." + args.bold_file_type
-    if (args.bold_file_type == ".nii" or args.bold_file_type == ".nii.gz") and (not args.brain_mask or not args.brain_mask.is_file()):
+    if (args.bold_file_type in [".nii", ".nii.gz"]) and (not args.auto_mask or args.brain_mask or not args.brain_mask.is_file()):
         parser.error("If the bold file type is volumetric data, a valid '--brain_mask' option must also be supplied")
 
     if (args.volterra_lag and not args.volterra_columns) or (not args.volterra_lag and args.volterra_columns):
