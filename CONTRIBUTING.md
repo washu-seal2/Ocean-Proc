@@ -1,32 +1,41 @@
-# poetry workflow
+# uv workflow
 
-When first cloning the repository, make sure that the version of Python you're using is >=3.10. 
+First, make sure you have `uv` installed in your Python environment. Instructions for your specific system can be found [here](https://docs.astral.sh/uv/getting-started/installation/).
 
-Then, run the following:
+After cloning the repository, navigate to the top-level directory of the repo (this should contain `uv.lock` and `pyproject.toml`), and run:
 
 ```
-python3 -m venv .venv
+uv sync
+```
+
+This will create (or update, if it exists) a virtual environment under a directory named `.venv`. To activate this for running entry-point scripts defined in `pyproject.toml` for testing, for example, simply activate the environment like:
+
+```
 . .venv/bin/activate
-pip install poetry==1.8.3
-poetry install
+```
+
+to get access to those entrypoint scripts. To deactivate the enviornment, run:
+
+```
+deactivate
+```
+
+If you want to create a build of the project, run:
+
+```
+uv build
 ```
 
 ### adding packages
 
-Run `poetry add` with the .venv environment activated to add any new packages to the environment.
-
-### building
-
-Run `poetry build` with the .venv environment activated to create a new build; this will generate a 
-`dist/` directory at the top level that will contain the .whl file and .tar.gz containing the 
-source code.
+`uv add <package-name>`
 
 ### running pytest, sphinx, or other dev dependencies
 
-Make sure that when running any dev tool, you prepend it with `poetry run`. For example, to run
+Make sure that when running any dev tool, you prepend it with `uv run`. For example, to run
 pytest: 
 
-`poetry run pytest [other-args...]`.
+`uv run pytest [other-args...]`.
 
 # uploading to pypi
 
@@ -44,4 +53,4 @@ This file will allow you to upload to pypi without needing to reenter the API to
 
 Then, to upload the new version:
 
-`poetry run twine upload dist/*`
+`uv run twine upload dist/*`
