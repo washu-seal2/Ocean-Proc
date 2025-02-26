@@ -657,7 +657,7 @@ def main():
     try: 
         ################# find all preprocessed BOLD runs for this subject and session #################
         preproc_derivs = args.derivs_dir / args.preproc_subfolder
-        bold_files = sorted(preproc_derivs.glob(f"**/*sub-{args.subject}_ses-{args.session}*task-{args.task}*bold{args.bold_file_type}"))
+        bold_files = sorted(preproc_derivs.glob(f"**/sub-{args.subject}_ses-{args.session}*task-{args.task}*bold{args.bold_file_type}"))
         assert len(bold_files) > 0, "Did not find any bold files in the given derivatives directory for the specified task and file type"
         
         ################# for each BOLD run, find the accompanying confounds file and events/events long file #################
