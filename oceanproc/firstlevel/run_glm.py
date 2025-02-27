@@ -479,8 +479,8 @@ def massuni_linGLM(func_data: npt.ArrayLike,
 
     # apply the mask to the data
     design_matrix = design_matrix.to_numpy()
-    masked_func_data = func_data[mask, :]
-    masked_design_matrix = design_matrix[mask, :]
+    masked_func_data = func_data.copy()[mask, :]
+    masked_design_matrix = design_matrix.copy()[mask, :]
 
     ss = StandardScaler()
 
