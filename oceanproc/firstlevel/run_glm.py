@@ -798,7 +798,7 @@ def main():
             logger.info(f" saving nuisance matrix to file: {noise_df_filename}")
             noise_df.to_csv(noise_df_filename)
 
-            events_long_filename = args.output_dir/f"{run_file_base}_desc-{user_desc}events_long.csv"
+            events_long_filename = args.output_dir/f"{run_file_base}_desc{user_desc}-events_long.csv"
             logger.debug(f" saving events long to file: {events_long_filename}")
             events_long.to_csv(events_long_filename)
 
