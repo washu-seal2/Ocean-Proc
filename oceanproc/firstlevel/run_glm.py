@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import numpy as np
 import sys
+import os
+import shutil
 from pathlib import Path
 import numpy.typing as npt
 import pandas as pd
@@ -15,7 +17,7 @@ from scipy import signal
 from scipy.stats import gamma
 from ..oceanparse import OceanParser
 from ..events_long import make_events_long
-from ..utils import exit_program_early, add_file_handler, default_log_format, export_args_to_file, flags, debug_logging, log_linebreak, load_data
+from ..utils import exit_program_early, add_file_handler, default_log_format, export_args_to_file, flags, debug_logging, log_linebreak, load_data, prompt_user_continue
 import logging
 import datetime
 from textwrap import dedent
@@ -542,6 +544,8 @@ def main():
                         help="The name of the subfolder in the derivatives directory where bids style outputs should be stored. The default is 'first_level'.")
     config_arguments.add_argument("--output_dir", "-o", type=Path,
                         help="Alternate Path to a directory to store the results of this analysis. Default is '[derivs_dir]/first_level/'")
+    config_arguments.add_argument("--custom_desc", "-cd",
+                        help="A custom description to add in the file name of every output file.")
     config_arguments.add_argument("--fir", "-ff", type=int,
                         help="The number of frames to use in an FIR model.")
     config_arguments.add_argument("--fir_vars", nargs="*",
@@ -631,13 +635,29 @@ def main():
             logger.exception(e)
             exit_program_early(e)
 
+    user_desc = f"-{args.custom_desc}" if args.custom_desc else ""
+    file_name_base = f"sub-{args.subject}_ses-{args.session}_task-{args.task}"
+
     if not hasattr(args, "output_dir") or args.output_dir == None:
         args.output_dir = args.derivs_dir / f"{args.derivs_subfolder}/sub-{args.subject}/ses-{args.session}/func"
-    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    log_dir = args.output_dir.parent / "logs" 
+    ################# check if previous outputs exist in the output directory #################
+    if args.output_dir.exists() and len(os.listdir(args.output_dir)) != 0:
+        want_to_delete = prompt_user_continue(dedent("""
+            The output directory for this subject and session is not empty. 
+            Would you like to delete its contents and start fresh? If not, the program will exit now.
+            """))
+        if want_to_delete:
+            logger.info("removing the old output directory and its contents")
+            shutil.rmtree(args.output_dir)
+        else: 
+            exit_program_early("output directory will not be modified")
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    log_dir = args.output_dir.parent / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-{datetime.datetime.now().strftime('%m-%d-%y_%I-%M%p')}.log"
+
+    log_path = log_dir / f"{file_name_base}_desc-{datetime.datetime.now().strftime('%m-%d-%y_%I-%M%p')}{user_desc}.log"
     add_file_handler(logger, log_path)
     
     if args.debug:
@@ -697,12 +717,11 @@ def main():
             log_linebreak()
             logger.info(f"processing bold file: {run_map['bold']}")
             logger.info(f" loading in BOLD data")
-
+            run_file_base = file_name_base
             run_info = len(str(run_map['bold']).split('run-')) > 1
-            run_num = i+1
             if run_info:
                 run_num = int(run_map['bold'].name.split('run-')[-1].split('_')[0])
-            run_info = f'run-{run_num:02d}_'
+                run_file_base = f"{file_name_base}_run-{run_num:02d}"
 
             func_data, read_tr, read_header = load_data(
                 func_file=run_map['bold'], 
@@ -775,15 +794,16 @@ def main():
 
 
             ################# save out the nuisance matrix and events matrix (if debug)#################
-            noise_df_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_nuisance.csv"
+            noise_df_filename = args.output_dir/f"{run_file_base}_desc-model-{model_type}{user_desc}_nuisance.csv"
             logger.info(f" saving nuisance matrix to file: {noise_df_filename}")
             noise_df.to_csv(noise_df_filename)
-            if flags.debug:
-                events_long_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-events_long.csv"
-                logger.debug(f" saving events long to file: {events_long_filename}")
-                events_long.to_csv(events_long_filename)
 
-                events_df_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}-events_matrix.csv"
+            events_long_filename = args.output_dir/f"{run_file_base}_desc{user_desc}-events_long.csv"
+            logger.debug(f" saving events long to file: {events_long_filename}")
+            events_long.to_csv(events_long_filename)
+
+            if flags.debug:
+                events_df_filename = args.output_dir/f"{run_file_base}_desc-model-{model_type}{user_desc}-events_matrix.csv"
                 logger.debug(f" saving events matrix to file: {events_df_filename}")
                 events_df.to_csv(events_df_filename)
 
@@ -803,7 +823,7 @@ def main():
                         tr=tr,
                         header=img_header
                     )
-                    cleaned_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_detrended{img_suffix}"
+                    cleaned_filename = args.output_dir/f"{run_file_base}_desc-model-{model_type}{user_desc}_detrended{img_suffix}"
                     logger.debug(f" saving BOLD data after detrending to file: {cleaned_filename}")
                     nib.save(
                         cleanimg,
@@ -839,7 +859,7 @@ def main():
                         tr=tr,
                         header=img_header
                     )
-                    nr_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_nuisance-regressed{img_suffix}"
+                    nr_filename = args.output_dir/f"{run_file_base}_desc-model-{model_type}{user_desc}_nuisance-regressed{img_suffix}"
                     logger.debug(f" saving BOLD data after nuisance regression to file: {nr_filename}")
                     nib.save(
                         nrimg,
@@ -854,7 +874,7 @@ def main():
                             tr=tr,
                             header=img_header
                         )
-                        beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}-beta-{noise_col}-frame-0{img_suffix}"
+                        beta_filename = args.output_dir/f"{run_file_base}_desc-model-{model_type}-beta-{noise_col}-frame-0{user_desc}{img_suffix}"
                         logger.debug(f" saving betas for nuisance variable: {noise_col} to file: {beta_filename}")
                         nib.save(
                             beta_img,
@@ -882,7 +902,7 @@ def main():
                         tr=tr,
                         header=img_header
                     )
-                    filtered_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_{run_info}desc-model-{model_type}_filtered{img_suffix}"
+                    filtered_filename = args.output_dir/f"{run_file_base}_desc-model-{model_type}{user_desc}_filtered{img_suffix}"
                     logger.debug(f" saving BOLD data after filtering to file: {filtered_filename}")
                     nib.save(
                         cleanimg,
@@ -928,10 +948,10 @@ def main():
         logger.info(f"total number of frames that will be used in the final GLM after high motion censoring: {np.sum(final_high_motion_mask)}")
 
         final_design_masked = final_design_unmasked.loc[final_high_motion_mask, :]
-        final_design_unmasked_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-design_unmasked.csv"
+        final_design_unmasked_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}{user_desc}-design_unmasked.csv"
         logger.info(f"saving the final unmasked design matrix to file: {final_design_unmasked_filename}")
         final_design_unmasked.to_csv(final_design_unmasked_filename)
-        final_design_masked_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-design_final.csv"
+        final_design_masked_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}{user_desc}-design_final.csv"
         logger.info(f"saving the final design matrix to file: {final_design_masked_filename}")
         final_design_masked.to_csv(final_design_masked_filename)
 
@@ -959,7 +979,7 @@ def main():
                     tr=tr,
                     header=img_header
                 )
-                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{c}-frame-0{img_suffix}"
+                beta_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}-beta-{c}-frame-0{user_desc}{img_suffix}"
                 logger.info(f" saving betas for variable {c} to file: {beta_filename}")
                 nib.save(
                     beta_img,
@@ -978,7 +998,7 @@ def main():
                         tr=tr,
                         header=img_header
                     )
-                    beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{condition}-frame-{f}{img_suffix}"
+                    beta_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}-beta-{condition}-frame-{f}{user_desc}{img_suffix}"
                     logger.info(f" saving betas for variable {condition} frame {f} to file: {beta_filename}")
                     nib.save(
                         beta_img,
@@ -991,7 +1011,7 @@ def main():
                     tr=tr,
                     header=img_header
                 )
-                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{condition}-concatenated{img_suffix}"
+                beta_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}-beta-{condition}-concatenated{user_desc}{img_suffix}"
                 logger.info(f" saving betas for variable {condition} (all {args.fir} modeled frames) to file: {beta_filename}")
                 nib.save(
                     beta_img,
@@ -1009,7 +1029,7 @@ def main():
                     tr=tr,
                     header=img_header
                 )
-                beta_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}-beta-{noise_col}-frame-0{img_suffix}"
+                beta_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}-beta-{noise_col}-frame-0{user_desc}{img_suffix}"
                 logger.debug(f" saving betas for nuisance variable: {noise_col} to file: {beta_filename}")
                 nib.save(
                     beta_img,
@@ -1023,7 +1043,7 @@ def main():
                 tr=tr,
                 header=img_header
             )
-            resid_filename = args.output_dir/f"sub-{args.subject}_ses-{args.session}_task-{args.task}_desc-model-{model_type}_residual{img_suffix}"
+            resid_filename = args.output_dir/f"{file_name_base}_desc-model-{model_type}{user_desc}_residual{img_suffix}"
             logger.debug(f" saving residual BOLD data after final GLM to file: {resid_filename}")
             nib.save(
                 resid_img,
